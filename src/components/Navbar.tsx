@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -15,7 +16,7 @@ const Navbar = () => {
   }, []);
 
   const navLinks = [
-    { label: "Home", href: "#" },
+    { label: "Home", href: "/" },
     { label: "About", href: "#about" },
     { label: "Domains", href: "#domains" },
     { label: "Team", href: "#team" },
@@ -51,9 +52,11 @@ const Navbar = () => {
                 {link.label}
               </a>
             ))}
-            <Button size="sm" className="bg-primary hover:bg-primary/90">
-              Join Now
-            </Button>
+            <Link to="/join">
+              <Button size="sm" className="bg-primary hover:bg-primary/90">
+                Join Now
+              </Button>
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -80,9 +83,11 @@ const Navbar = () => {
                 {link.label}
               </a>
             ))}
-            <Button size="sm" className="w-full bg-primary hover:bg-primary/90">
-              Join Now
-            </Button>
+            <Link to="/join">
+              <Button size="sm" className="w-full bg-primary hover:bg-primary/90">
+                Join Now
+              </Button>
+            </Link>
           </div>
         )}
       </div>
