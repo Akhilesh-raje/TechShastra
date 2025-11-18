@@ -23,10 +23,10 @@ const Footer = () => {
           <div>
             <h3 className="font-semibold mb-4">Quick Links</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#about" className="hover:text-primary transition-colors">About Us</a></li>
-              <li><a href="#domains" className="hover:text-primary transition-colors">Domains</a></li>
-              <li><a href="#team" className="hover:text-primary transition-colors">Team</a></li>
-              <li><a href="#contact" className="hover:text-primary transition-colors">Contact</a></li>
+              <li><a href="/#about" className="hover:text-primary transition-colors">About Us</a></li>
+              <li><a href="/projects" className="hover:text-primary transition-colors">Projects</a></li>
+              <li><a href="/events" className="hover:text-primary transition-colors">Events</a></li>
+              <li><a href="/#team" className="hover:text-primary transition-colors">Team</a></li>
             </ul>
           </div>
 
