@@ -133,6 +133,33 @@ All colors MUST be HSL.
       box-shadow: 0 0 40px hsl(var(--primary) / 0.6), 0 0 60px hsl(var(--accent) / 0.4);
     }
   }
+
+  /* Light theme optimized glow */
+  :root .animate-glow {
+    animation: glow-light 2s ease-in-out infinite alternate;
+  }
+
+  .dark .animate-glow {
+    animation: glow-dark 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes glow-light {
+    from {
+      box-shadow: 0 0 15px hsl(var(--primary) / 0.25), 0 4px 20px hsl(220 40% 30% / 0.1);
+    }
+    to {
+      box-shadow: 0 0 30px hsl(var(--primary) / 0.4), 0 0 50px hsl(var(--accent) / 0.3), 0 4px 30px hsl(220 40% 30% / 0.15);
+    }
+  }
+
+  @keyframes glow-dark {
+    from {
+      box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+    }
+    to {
+      box-shadow: 0 0 40px hsl(var(--primary) / 0.6), 0 0 60px hsl(var(--accent) / 0.4);
+    }
+  }
 }
 
 @layer base {
