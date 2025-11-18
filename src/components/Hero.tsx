@@ -66,11 +66,11 @@ const Hero = () => {
                 <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
-            <a href="#about">
+            <Link to="/projects">
               <Button size="lg" variant="outline" className="border-2 border-primary/60 hover:bg-primary/20 hover:border-primary font-semibold backdrop-blur-sm bg-background/50">
                 Explore Projects
               </Button>
-            </a>
+            </Link>
           </div>
 
           {/* Stats */}

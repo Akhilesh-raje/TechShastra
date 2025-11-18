@@ -19,9 +19,9 @@ const Navbar = () => {
   const navLinks = [
     { label: "Home", href: "/" },
     { label: "About", href: "#about" },
-    { label: "Domains", href: "#domains" },
+    { label: "Projects", href: "/projects" },
+    { label: "Events", href: "/events" },
     { label: "Team", href: "#team" },
-    { label: "Contact", href: "#contact" },
   ];
 
   return (
@@ -45,13 +45,28 @@ const Navbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
             {navLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-              >
-                {link.label}
-              </a>
+              link.href.startsWith('#') ? (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const element = document.querySelector(link.href);
+                    element?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  {link.label}
+                </a>
+              ) : (
+                <Link
+                  key={link.label}
+                  to={link.href}
+                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                >
+                  {link.label}
+                </Link>
+              )
             ))}
             <ThemeToggle />
             <Link to="/join">
@@ -78,14 +93,30 @@ const Navbar = () => {
         {isMobileMenuOpen && (
           <div className="md:hidden py-4 space-y-4 border-t border-primary/10">
             {navLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                className="block text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {link.label}
-              </a>
+              link.href.startsWith('#') ? (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  className="block text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setIsMobileMenuOpen(false);
+                    const element = document.querySelector(link.href);
+                    element?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  {link.label}
+                </a>
+              ) : (
+                <Link
+                  key={link.label}
+                  to={link.href}
+                  className="block text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              )
             ))}
             <Link to="/join">
               <Button size="sm" className="w-full bg-primary hover:bg-primary/90">
