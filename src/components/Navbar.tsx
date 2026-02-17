@@ -26,30 +26,29 @@ const Navbar = () => {
 
   return (
     <nav 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         isScrolled 
-          ? "bg-background/80 backdrop-blur-lg border-b border-primary/10 shadow-lg" 
-          : "bg-transparent"
+          ? "glass py-2" 
+          : "bg-transparent py-4"
       }`}
     >
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center space-x-2">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <span className="text-xl font-bold text-background">TS</span>
-            </div>
-            <span className="text-xl font-bold text-gradient-neon">TECHSHASTRA</span>
-          </div>
+          <Link to="/" className="flex items-center space-x-3 group">
+            <span className="font-heading text-lg tracking-[0.15em] font-light text-foreground group-hover:text-primary transition-colors">
+              TECHSHASTRA
+            </span>
+          </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-6">
+          <div className="hidden md:flex items-center space-x-8">
             {navLinks.map((link) => (
               link.href.startsWith('#') ? (
                 <a
                   key={link.label}
                   href={link.href}
-                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                  className="text-sm font-light tracking-wider text-foreground/70 hover:text-foreground transition-colors duration-300"
                   onClick={(e) => {
                     e.preventDefault();
                     const element = document.querySelector(link.href);
@@ -62,7 +61,7 @@ const Navbar = () => {
                 <Link
                   key={link.label}
                   to={link.href}
-                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                  className="text-sm font-light tracking-wider text-foreground/70 hover:text-foreground transition-colors duration-300"
                 >
                   {link.label}
                 </Link>
@@ -70,7 +69,7 @@ const Navbar = () => {
             ))}
             <ThemeToggle />
             <Link to="/join">
-              <Button size="sm" className="bg-primary hover:bg-primary/90">
+              <Button size="sm" className="rounded-full px-6 font-light tracking-wider bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-primary-foreground transition-all duration-300">
                 Join Now
               </Button>
             </Link>
@@ -82,6 +81,7 @@ const Navbar = () => {
             <Button
               variant="ghost"
               size="icon"
+              className="text-foreground/70"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               {isMobileMenuOpen ? <X /> : <Menu />}
@@ -91,13 +91,13 @@ const Navbar = () => {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden py-4 space-y-4 border-t border-primary/10">
+          <div className="md:hidden py-6 space-y-4 mt-4 border-t border-border">
             {navLinks.map((link) => (
               link.href.startsWith('#') ? (
                 <a
                   key={link.label}
                   href={link.href}
-                  className="block text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                  className="block text-sm font-light tracking-wider text-foreground/70 hover:text-foreground transition-colors"
                   onClick={(e) => {
                     e.preventDefault();
                     setIsMobileMenuOpen(false);
@@ -111,15 +111,15 @@ const Navbar = () => {
                 <Link
                   key={link.label}
                   to={link.href}
-                  className="block text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                  className="block text-sm font-light tracking-wider text-foreground/70 hover:text-foreground transition-colors"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {link.label}
                 </Link>
               )
             ))}
-            <Link to="/join">
-              <Button size="sm" className="w-full bg-primary hover:bg-primary/90">
+            <Link to="/join" onClick={() => setIsMobileMenuOpen(false)}>
+              <Button size="sm" className="w-full rounded-full font-light tracking-wider bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-primary-foreground">
                 Join Now
               </Button>
             </Link>

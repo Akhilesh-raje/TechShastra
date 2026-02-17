@@ -1,39 +1,37 @@
 import { Linkedin, Instagram, Mail } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Footer = () => {
   return (
-    <footer className="border-t border-primary/10 bg-card/20 backdrop-blur-sm">
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid md:grid-cols-3 gap-8 mb-8">
+    <footer className="border-t border-foreground/5 py-16">
+      <div className="container mx-auto px-4">
+        <div className="grid md:grid-cols-3 gap-12 mb-12">
           {/* Brand */}
           <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <span className="text-xl font-bold text-background">TS</span>
-              </div>
-              <span className="text-xl font-bold text-gradient-neon">TECHSHASTRA</span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Innovate. Create. Dominate.<br />
+            <span className="font-heading text-lg tracking-[0.15em] font-light text-foreground">
+              TECHSHASTRA
+            </span>
+            <p className="text-sm font-light text-foreground/35 leading-relaxed">
+              Innovate · Create · Dominate<br />
               The official technical club of UTU Dehradun.
             </p>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h3 className="font-semibold mb-4">Quick Links</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="/#about" className="hover:text-primary transition-colors">About Us</a></li>
-              <li><a href="/projects" className="hover:text-primary transition-colors">Projects</a></li>
-              <li><a href="/events" className="hover:text-primary transition-colors">Events</a></li>
-              <li><a href="/#team" className="hover:text-primary transition-colors">Team</a></li>
+            <h3 className="text-xs font-light tracking-widest uppercase text-foreground/30 mb-5">Quick Links</h3>
+            <ul className="space-y-3 text-sm font-light">
+              <li><a href="/#about" className="text-foreground/40 hover:text-foreground transition-colors duration-300">About Us</a></li>
+              <li><Link to="/projects" className="text-foreground/40 hover:text-foreground transition-colors duration-300">Projects</Link></li>
+              <li><Link to="/events" className="text-foreground/40 hover:text-foreground transition-colors duration-300">Events</Link></li>
+              <li><a href="/#team" className="text-foreground/40 hover:text-foreground transition-colors duration-300">Team</a></li>
             </ul>
           </div>
 
           {/* Contact */}
           <div>
-            <h3 className="font-semibold mb-4">Connect With Us</h3>
-            <div className="space-y-2 text-sm text-muted-foreground mb-4">
+            <h3 className="text-xs font-light tracking-widest uppercase text-foreground/30 mb-5">Connect</h3>
+            <div className="space-y-2 text-sm font-light text-foreground/35 mb-5">
               <p>Uttarakhand Technical University</p>
               <p>Dehradun, Uttarakhand</p>
             </div>
@@ -42,31 +40,33 @@ const Footer = () => {
                 href="https://www.linkedin.com/company/tech-shastra/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center hover:bg-primary/30 transition-colors"
+                className="w-9 h-9 rounded-full bg-primary/8 flex items-center justify-center hover:bg-primary/15 transition-colors duration-500"
               >
-                <Linkedin className="w-4 h-4 text-primary" />
+                <Linkedin className="w-4 h-4 text-foreground/30" />
               </a>
               <a 
                 href="https://www.instagram.com/techshastra_utu"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-9 h-9 rounded-full bg-accent/20 flex items-center justify-center hover:bg-accent/30 transition-colors"
+                className="w-9 h-9 rounded-full bg-primary/8 flex items-center justify-center hover:bg-primary/15 transition-colors duration-500"
               >
-                <Instagram className="w-4 h-4 text-accent" />
+                <Instagram className="w-4 h-4 text-foreground/30" />
               </a>
               <a 
                 href="mailto:vmsb.utu.ddn.2023@gmail.com"
-                className="w-9 h-9 rounded-full bg-secondary/20 flex items-center justify-center hover:bg-secondary/30 transition-colors"
+                className="w-9 h-9 rounded-full bg-primary/8 flex items-center justify-center hover:bg-primary/15 transition-colors duration-500"
               >
-                <Mail className="w-4 h-4 text-secondary" />
+                <Mail className="w-4 h-4 text-foreground/30" />
               </a>
             </div>
           </div>
         </div>
 
         {/* Bottom */}
-        <div className="pt-8 border-t border-primary/10 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} TECHSHASTRA. All rights reserved.</p>
+        <div className="pt-8 border-t border-foreground/5 text-center">
+          <p className="text-xs font-light tracking-wider text-foreground/25">
+            &copy; {new Date().getFullYear()} TECHSHASTRA. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>
