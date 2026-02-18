@@ -36,7 +36,7 @@ const Footer = () => {
               <p>Dehradun, Uttarakhand</p>
             </div>
             <div className="flex gap-3">
-              <a 
+              <a
                 href="https://www.linkedin.com/company/tech-shastra/"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -44,7 +44,7 @@ const Footer = () => {
               >
                 <Linkedin className="w-4 h-4 text-foreground/30" />
               </a>
-              <a 
+              <a
                 href="https://www.instagram.com/techshastra_utu"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -52,7 +52,7 @@ const Footer = () => {
               >
                 <Instagram className="w-4 h-4 text-foreground/30" />
               </a>
-              <a 
+              <a
                 href="mailto:vmsb.utu.ddn.2023@gmail.com"
                 className="w-9 h-9 rounded-full bg-primary/8 flex items-center justify-center hover:bg-primary/15 transition-colors duration-500"
               >
@@ -63,7 +63,10 @@ const Footer = () => {
         </div>
 
         {/* Bottom */}
-        <div className="pt-8 border-t border-foreground/5 text-center">
+        <div className="pt-8 border-t border-foreground/5 text-center space-y-4">
+          <p className="text-[10px] tracking-[0.3em] uppercase text-foreground/20 font-light">
+            Building Uttarakhand's next generation of technologists and founders.
+          </p>
           <p className="text-xs font-light tracking-wider text-foreground/25">
             &copy; {new Date().getFullYear()} TECHSHASTRA. All rights reserved.
           </p>

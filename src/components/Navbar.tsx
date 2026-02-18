@@ -18,19 +18,22 @@ const Navbar = () => {
 
   const navLinks = [
     { label: "Home", href: "/" },
-    { label: "About", href: "#about" },
+    { label: "About", href: "/#about" },
     { label: "Projects", href: "/projects" },
     { label: "Events", href: "/events" },
-    { label: "Team", href: "#team" },
+    { label: "Blog", href: "/blog" },
+    { label: "Research & Books", href: "/publications" },
+    { label: "Resources", href: "/resources" },
+    { label: "Contact", href: "/contact" },
+    { label: "Admin", href: "/admin" },
   ];
 
   return (
-    <nav 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        isScrolled 
-          ? "glass py-2" 
-          : "bg-transparent py-4"
-      }`}
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled
+        ? "glass py-2"
+        : "bg-transparent py-4"
+        }`}
     >
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between">

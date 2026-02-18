@@ -1,152 +1,111 @@
+import { useState, useEffect } from "react";
+import { getAllProjects, Project } from "@/lib/projectStore";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Github, ExternalLink } from "lucide-react";
-
-const projects = [
-  {
-    title: "Smart Campus System",
-    description: "IoT-based attendance and campus management system with real-time tracking and analytics.",
-    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80",
-    tags: ["IoT", "React", "Node.js", "MongoDB"],
-    github: "#",
-    demo: "#",
-    status: "Completed"
-  },
-  {
-    title: "AI Study Assistant",
-    description: "Machine learning powered chatbot to help students with course materials and doubt solving.",
-    image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80",
-    tags: ["AI/ML", "Python", "TensorFlow", "FastAPI"],
-    github: "#",
-    demo: "#",
-    status: "In Progress"
-  },
-  {
-    title: "CyberShield Platform",
-    description: "Educational cybersecurity training platform with interactive challenges and CTF competitions.",
-    image: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80",
-    tags: ["Cybersecurity", "React", "Docker", "PostgreSQL"],
-    github: "#",
-    demo: "#",
-    status: "Completed"
-  },
-  {
-    title: "EcoTrack Mobile App",
-    description: "Mobile application for tracking carbon footprint and promoting sustainable practices.",
-    image: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=800&q=80",
-    tags: ["Mobile", "React Native", "Firebase"],
-    github: "#",
-    demo: "#",
-    status: "In Progress"
-  },
-  {
-    title: "Code Collab",
-    description: "Real-time collaborative coding platform with video chat and whiteboard features.",
-    image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&q=80",
-    tags: ["Web Dev", "WebRTC", "Socket.io", "Next.js"],
-    github: "#",
-    demo: "#",
-    status: "Completed"
-  },
-  {
-    title: "Robo Arm Control",
-    description: "Gesture-controlled robotic arm using computer vision and Arduino integration.",
-    image: "https://images.unsplash.com/photo-1563207153-f403bf289096?w=800&q=80",
-    tags: ["Robotics", "Python", "OpenCV", "Arduino"],
-    github: "#",
-    demo: "#",
-    status: "In Progress"
-  }
-];
-
+import { Github, Play, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 const Projects = () => {
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+
+  useEffect(() => {
+    setAllProjects(getAllProjects());
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <main className="pt-24 pb-20 px-4">
         <div className="container mx-auto max-w-6xl">
           {/* Header */}
           <div className="text-center mb-16 space-y-4">
-            <h1 className="text-4xl md:text-6xl font-bold">
-              Our <span className="text-gradient-neon">Projects</span>
+            <h1 className="text-4xl md:text-6xl font-heading font-light tracking-tight">
+              Our <span className="text-primary italic">Projects</span>
             </h1>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Explore innovative projects built by TECHSHASTRA members across various domains
+            <p className="text-base font-light text-foreground/50 max-w-2xl mx-auto tracking-wide italic">
+              "Explore the intersection of hardware, software, and visionary entrepreneurship."
             </p>
           </div>
 
           {/* Projects Grid */}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {projects.map((project, index) => (
-              <Card 
-                key={index}
-                className="bg-card/50 backdrop-blur-sm border-primary/10 hover:border-primary/30 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/10 overflow-hidden group"
+            {allProjects.map((project) => (
+              <Card
+                key={project.id}
+                className="glass border-0 hover:scale-[1.02] transition-all duration-500 group rounded-3xl overflow-hidden"
               >
                 {/* Project Image */}
-                <div className="relative h-48 overflow-hidden">
-                  <img 
-                    src={project.image} 
+                <div className="relative h-56 overflow-hidden">
+                  <img
+                    src={project.image || `https://og.tailgraph.com/og?fontFamily=Inter&title=${encodeURIComponent(project.title)}&bgColor=0f172a&titleColor=a855f7&logoText=TECHSHASTRA`}
                     alt={project.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.onerror = null;
+                      target.src = `https://placehold.co/800x450/0f172a/a855f7?text=${encodeURIComponent(project.title)}`;
+                    }}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent opacity-60"></div>
-                  <Badge 
-                    className={`absolute top-4 right-4 ${
-                      project.status === "Completed" 
-                        ? "bg-primary text-primary-foreground" 
-                        : "bg-accent text-accent-foreground"
-                    }`}
-                  >
-                    {project.status}
-                  </Badge>
+                  <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent"></div>
+
+                  <div className="absolute top-4 right-4 flex gap-2">
+                    <Badge className="bg-primary/20 backdrop-blur-md text-primary-foreground border-0 text-[10px] uppercase tracking-widest px-3 py-1">
+                      {project.status}
+                    </Badge>
+                    <Badge className="bg-accent/40 backdrop-blur-md text-foreground border-0 text-[10px] uppercase tracking-widest px-3 py-1">
+                      Live Embed
+                    </Badge>
+                  </div>
                 </div>
 
-                <CardContent className="p-6 space-y-4">
-                  <h3 className="text-xl font-bold">{project.title}</h3>
-                  <p className="text-sm text-muted-foreground line-clamp-3">
+                <CardContent className="p-8 space-y-6">
+                  <h3 className="text-xl font-heading font-light tracking-wide">{project.title}</h3>
+                  <p className="text-sm font-light text-foreground/50 line-clamp-2 italic">
                     {project.description}
                   </p>
 
+                  <div className="grid grid-cols-2 gap-4 py-4 border-y border-foreground/5">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-foreground/30 mb-1">Lead Dev</p>
+                      <p className="text-xs font-light text-foreground/70">{project.team.lead}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-foreground/30 mb-1">UI Designer</p>
+                      <p className="text-xs font-light text-foreground/70">{project.team.designer}</p>
+                    </div>
+                  </div>
+
                   {/* Tags */}
                   <div className="flex flex-wrap gap-2">
-                    {project.tags.map((tag, idx) => (
-                      <Badge 
-                        key={idx} 
-                        variant="outline"
-                        className="border-primary/30 text-xs"
-                      >
+                    {project.tags.slice(0, 3).map((tag, idx) => (
+                      <span key={idx} className="text-[10px] uppercase tracking-widest text-foreground/40 font-light px-2 py-1 bg-primary/5 rounded-md">
                         {tag}
-                      </Badge>
+                      </span>
                     ))}
                   </div>
 
-                  {/* Links */}
-                  <div className="flex gap-2 pt-2">
-                    <Button 
-                      size="sm" 
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-2">
+                    <Button
                       variant="outline"
-                      className="flex-1 border-primary/40 hover:bg-primary/10"
+                      className="flex-1 glass border-0 rounded-full h-12 hover:bg-primary/5 transition-all duration-300"
                       asChild
                     >
                       <a href={project.github} target="_blank" rel="noopener noreferrer">
                         <Github className="w-4 h-4 mr-2" />
-                        Code
+                        <span className="text-[10px] uppercase tracking-widest">Code</span>
                       </a>
                     </Button>
-                    <Button 
-                      size="sm"
-                      className="flex-1 bg-primary hover:bg-primary/90"
-                      asChild
-                    >
-                      <a href={project.demo} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Demo
-                      </a>
-                    </Button>
+
+                    <Link to={`/projects/${project.id}/live`} className="flex-1">
+                      <Button className="w-full bg-primary text-primary-foreground rounded-full h-12 shadow-lg hover:shadow-primary/20 transition-all duration-500">
+                        <Play className="w-4 h-4 mr-2" />
+                        <span className="text-[10px] uppercase tracking-widest">Run Live</span>
+                      </Button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
@@ -154,20 +113,22 @@ const Projects = () => {
           </div>
 
           {/* CTA */}
-          <div className="mt-16 text-center">
-            <Card className="bg-gradient-to-br from-primary/10 to-accent/10 backdrop-blur-sm border-primary/20 p-8">
-              <h3 className="text-2xl font-bold mb-4">Have a Project Idea?</h3>
-              <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
+          <div className="mt-24 text-center">
+            <div className="glass p-12 rounded-[3rem] border-0 space-y-6 max-w-4xl mx-auto">
+              <h3 className="text-3xl font-heading font-light tracking-tight italic">Have a Project Idea?</h3>
+              <p className="text-foreground/50 max-w-2xl mx-auto font-light leading-relaxed">
                 Join TECHSHASTRA and bring your innovative ideas to life with our community of creators and mentors.
               </p>
-              <Button 
+              <Button
                 size="lg"
-                className="bg-primary hover:bg-primary/90 shadow-[0_0_30px_rgba(0,230,118,0.3)]"
+                className="bg-primary text-primary-foreground rounded-full px-12 py-7 mt-4 shadow-2xl hover:scale-105 transition-all duration-500"
                 asChild
               >
-                <a href="/join">Join Our Community</a>
+                <Link to="/join">
+                  <span className="text-xs uppercase tracking-[0.2em] font-medium">Join Our Community</span>
+                </Link>
               </Button>
-            </Card>
+            </div>
           </div>
         </div>
       </main>

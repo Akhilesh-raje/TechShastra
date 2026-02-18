@@ -1,17 +1,9 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-
-interface GalleryImage {
-  id: string;
-  title: string;
-  description: string | null;
-  image_url: string;
-  created_at: string;
-}
+import { getAllGalleryImages, GalleryImage } from "@/lib/galleryStore";
 
 const Gallery = () => {
   const [images, setImages] = useState<GalleryImage[]>([]);
@@ -19,25 +11,16 @@ const Gallery = () => {
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
 
   useEffect(() => {
-    fetchImages();
-  }, []);
-
-  const fetchImages = async () => {
-    const { data, error } = await supabase
-      .from("gallery_images")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (!error && data) {
-      setImages(data);
-    }
+    // Read from localStorage store
+    const stored = getAllGalleryImages();
+    setImages(stored);
     setLoading(false);
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <Navbar />
-      
+
       <main className="container mx-auto px-4 py-24">
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
@@ -63,14 +46,17 @@ const Gallery = () => {
             {images.map((image) => (
               <Card
                 key={image.id}
-                className="aspect-square overflow-hidden cursor-pointer hover-scale border-2 hover:border-primary/50 transition-all"
+                className="group relative aspect-square overflow-hidden cursor-pointer hover-scale border-2 hover:border-primary/50 transition-all shadow-lg"
                 onClick={() => setSelectedImage(image)}
               >
                 <img
                   src={image.image_url}
                   alt={image.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                  <p className="text-white text-sm font-medium line-clamp-1">{image.title}</p>
+                </div>
               </Card>
             ))}
           </div>
@@ -78,18 +64,20 @@ const Gallery = () => {
       </main>
 
       <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none">
           {selectedImage && (
-            <div>
+            <div className="relative group">
               <img
                 src={selectedImage.image_url}
                 alt={selectedImage.title}
-                className="w-full rounded-lg"
+                className="w-full h-auto max-h-[85vh] object-contain rounded-lg"
               />
-              <h3 className="text-2xl font-bold mt-4">{selectedImage.title}</h3>
-              {selectedImage.description && (
-                <p className="text-muted-foreground mt-2">{selectedImage.description}</p>
-              )}
+              <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent text-white rounded-b-lg">
+                <h3 className="text-2xl font-bold">{selectedImage.title}</h3>
+                {selectedImage.description && (
+                  <p className="text-gray-200 mt-2 text-lg">{selectedImage.description}</p>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>

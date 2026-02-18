@@ -1,57 +1,48 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Calendar, ArrowLeft } from "lucide-react";
+import { Calendar, ArrowLeft, Newspaper, FileText, Megaphone } from "lucide-react";
 import { format } from "date-fns";
+import { getBlogPostBySlug, BlogPost as BlogPostType, BlogCategory } from "@/lib/blogStore";
 
-interface BlogPost {
-  id: string;
-  title: string;
-  content: string;
-  image_url: string | null;
-  published_at: string;
-  profiles: {
-    full_name: string;
-    avatar_url: string | null;
-  };
-}
+const CATEGORY_LABELS: Record<BlogCategory, string> = {
+  blog: "Blog",
+  news: "News",
+  announcement: "Announcement",
+};
+
+const CATEGORY_STYLE: Record<BlogCategory, string> = {
+  blog: "bg-primary/10 text-primary border-primary/20",
+  news: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  announcement: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+};
+
+const CATEGORY_ICONS: Record<BlogCategory, React.ReactNode> = {
+  blog: <FileText className="w-3.5 h-3.5" />,
+  news: <Newspaper className="w-3.5 h-3.5" />,
+  announcement: <Megaphone className="w-3.5 h-3.5" />,
+};
 
 const BlogPost = () => {
   const { slug } = useParams();
-  const [post, setPost] = useState<BlogPost | null>(null);
+  const [post, setPost] = useState<BlogPostType | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (slug) {
-      fetchPost();
+      // Look up from localStorage store
+      const found = getBlogPostBySlug(slug);
+      setPost(found ?? null);
+      setLoading(false);
     }
   }, [slug]);
-
-  const fetchPost = async () => {
-    const { data, error } = await supabase
-      .from("blog_posts")
-      .select(`
-        *,
-        profiles:author_id (full_name, avatar_url)
-      `)
-      .eq("slug", slug)
-      .eq("published", true)
-      .single();
-
-    if (!error && data) {
-      setPost(data as any);
-    }
-    setLoading(false);
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <Navbar />
-      
+
       <main className="container mx-auto px-4 py-24 max-w-4xl">
         <Link to="/blog">
           <Button variant="ghost" className="mb-8">
@@ -68,35 +59,67 @@ const BlogPost = () => {
           </div>
         ) : post ? (
           <article>
-            <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            {/* Category badge */}
+            <div className="mb-4">
+              <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full border ${CATEGORY_STYLE[post.category]}`}>
+                {CATEGORY_ICONS[post.category]}
+                {CATEGORY_LABELS[post.category]}
+              </span>
+            </div>
+
+            {/* Title */}
+            <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent leading-tight">
               {post.title}
             </h1>
 
-            <div className="flex items-center gap-4 mb-8">
-              <Avatar>
-                <AvatarFallback>{post.profiles.full_name[0]}</AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="font-medium">{post.profiles.full_name}</p>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="w-4 h-4" />
-                  <span>{format(new Date(post.published_at), "MMMM d, yyyy")}</span>
+            {/* Meta */}
+            <div className="flex items-center gap-4 mb-8 text-sm text-muted-foreground flex-wrap">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+                  {post.author.charAt(0).toUpperCase()}
                 </div>
+                <span className="font-medium text-foreground">{post.author}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4" />
+                <span>{format(new Date(post.published_at), "MMMM d, yyyy")}</span>
               </div>
             </div>
 
+            {/* Cover image */}
             {post.image_url && (
               <img
                 src={post.image_url}
                 alt={post.title}
-                className="w-full rounded-lg mb-8 shadow-lg"
+                className="w-full rounded-2xl mb-10 shadow-xl max-h-[480px] object-cover"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             )}
 
+            {/* Content */}
             <div className="prose prose-lg dark:prose-invert max-w-none">
-              {post.content.split('\n').map((paragraph, i) => (
-                <p key={i} className="mb-4">{paragraph}</p>
+              {post.content.split(/\n{2,}/).map((paragraph, i) => (
+                paragraph.trim() ? (
+                  <p key={i} className="mb-5 leading-relaxed text-foreground/90">
+                    {paragraph.split('\n').map((line, j) => (
+                      <span key={j}>
+                        {line}
+                        {j < paragraph.split('\n').length - 1 && <br />}
+                      </span>
+                    ))}
+                  </p>
+                ) : null
               ))}
+            </div>
+
+            {/* Footer */}
+            <div className="mt-12 pt-8 border-t">
+              <Link to="/blog">
+                <Button variant="outline">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to all posts
+                </Button>
+              </Link>
             </div>
           </article>
         ) : (
