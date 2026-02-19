@@ -1,53 +1,56 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getUserRole, isUserBlocked, type AdminRole } from "@/lib/adminStore";
 import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
-  children: React.ReactNode;
+  children: React.ReactNode | ((props: { userRole: AdminRole }) => React.ReactNode);
   requireAdmin?: boolean;
 }
 
-const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps) => {
+const ProtectedRoute = ({
+  children,
+  requireAdmin = false,
+}: ProtectedRouteProps) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [userRole, setUserRole] = useState<AdminRole | null>(null);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   useEffect(() => {
     checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setIsAuthenticated(!!session);
-      if (session) {
-        checkAdminStatus(session.user.id);
-      } else {
-        setIsAdmin(false);
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    setIsAuthenticated(!!session);
-    
-    if (session) {
-      await checkAdminStatus(session.user.id);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      setIsAuthenticated(false);
+      setLoading(false);
+      return;
     }
+
+    setIsAuthenticated(true);
+    const userId = session.user.id;
+
+    // Check blocklist
+    const blocked = await isUserBlocked(userId);
+    if (blocked) {
+      setIsBlocked(true);
+      setLoading(false);
+      return;
+    }
+
+    // Check role
+    if (requireAdmin) {
+      const role = await getUserRole(userId);
+      setUserRole(role);
+    }
+
     setLoading(false);
-  };
-
-  const checkAdminStatus = async (userId: string) => {
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle();
-
-    setIsAdmin(!!data);
   };
 
   if (loading) {
@@ -62,8 +65,17 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     return <Navigate to="/auth" replace />;
   }
 
-  if (requireAdmin && !isAdmin) {
-    return <Navigate to="/" replace />;
+  if (isBlocked) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (requireAdmin && !userRole) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // If children is a render function, pass userRole
+  if (typeof children === "function" && userRole) {
+    return <>{children({ userRole })}</>;
   }
 
   return <>{children}</>;

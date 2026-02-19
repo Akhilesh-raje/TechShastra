@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LayoutDashboard, FileText, Calendar, Image, Trophy, HelpCircle, MessageSquare, Users, Plus, Trash2, Github, Globe, Terminal, Loader2, Award, Newspaper, Eye, EyeOff, Book } from "lucide-react";
+import { LayoutDashboard, FileText, Calendar, Image, Trophy, HelpCircle, MessageSquare, Users, Plus, Trash2, Github, Globe, Terminal, Loader2, Award, Newspaper, Eye, EyeOff, Book, ShieldCheck, LogOut, Ban, UserCheck, UserX, ToggleLeft, ToggleRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +14,8 @@ import { addProject, deleteProject, getAllProjects, getStoredProjects, Project, 
 import { addBlogPost, deleteBlogPost, getAllBlogPosts, generateSlug, BlogPost, BlogCategory, updateBlogPost } from "@/lib/blogStore";
 import { addGalleryImage, deleteGalleryImage, getAllGalleryImages, GalleryImage } from "@/lib/galleryStore";
 import { addPublication, deletePublication, getAllPublications, Publication, PublicationType } from "@/lib/publicationStore";
+import { getAdminUsers, removeAdminUser, blockUser, unblockUser, getPageVisibility, togglePageVisibility, type AdminUser, type PageVisibility, type AdminRole } from "@/lib/adminStore";
+import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import CertificateSender from "@/components/CertificateSender";
 import { Switch } from "@/components/ui/switch";
@@ -30,8 +33,14 @@ const CATEGORY_COLORS: Record<BlogCategory, string> = {
   announcement: "outline",
 };
 
-const Admin = () => {
+interface AdminProps {
+  userRole: AdminRole;
+}
+
+const Admin = ({ userRole }: AdminProps) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const isSuperAdmin = userRole === "super_admin";
 
   // ── Projects state ──────────────────────────────────────────────────────────
   const [projects, setProjects] = useState<Project[]>([]);
@@ -111,13 +120,68 @@ const Admin = () => {
     file_url: "",
   });
 
+  // ── Super Admin state ─────────────────────────────────────────────────────────
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [pages, setPages] = useState<PageVisibility[]>([]);
+  const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [blockReason, setBlockReason] = useState("");
+  const [superAdminLoading, setSuperAdminLoading] = useState(false);
+
   // ── Init ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
     setProjects(getAllProjects());
     setBlogPosts(getAllBlogPosts());
     setGalleryImages(getAllGalleryImages());
     setPublications(getAllPublications());
+    if (isSuperAdmin) {
+      loadSuperAdminData();
+    }
   }, []);
+
+  const loadSuperAdminData = async () => {
+    setSuperAdminLoading(true);
+    const [users, pageData] = await Promise.all([
+      getAdminUsers(),
+      getPageVisibility(),
+    ]);
+    setAdminUsers(users);
+    setPages(pageData);
+    setSuperAdminLoading(false);
+  };
+
+  const handleRemoveAdmin = async (userId: string, name?: string) => {
+    await removeAdminUser(userId);
+    setAdminUsers(prev => prev.filter(u => u.user_id !== userId));
+    toast({ title: "Admin Removed", description: `${name || "User"} has been removed from admin roster.` });
+  };
+
+  const handleBlockAdmin = async (userId: string, name?: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    await blockUser(userId, session.user.id, blockReason || undefined);
+    setAdminUsers(prev => prev.map(u => u.user_id === userId ? { ...u, is_blocked: true, block_reason: blockReason || undefined } : u));
+    setBlockReason("");
+    toast({ title: "Admin Blocked", description: `${name || "User"} has been blocked from accessing the admin panel.` });
+  };
+
+  const handleUnblockAdmin = async (userId: string, name?: string) => {
+    await unblockUser(userId);
+    setAdminUsers(prev => prev.map(u => u.user_id === userId ? { ...u, is_blocked: false, block_reason: undefined } : u));
+    toast({ title: "Admin Unblocked", description: `${name || "User"} can now access the admin panel again.` });
+  };
+
+  const handleTogglePage = async (page: PageVisibility) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    await togglePageVisibility(page.id, !page.is_visible, session.user.id);
+    setPages(prev => prev.map(p => p.id === page.id ? { ...p, is_visible: !p.is_visible } : p));
+    toast({ title: page.is_visible ? "Page Hidden" : "Page Visible", description: `${page.page_name} is now ${page.is_visible ? "hidden from" : "visible to"} visitors.` });
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate("/");
+  };
 
   // ── Project helpers ──────────────────────────────────────────────────────────
   const generateProjectImage = (title: string, description: string, tags: string) => {
@@ -499,9 +563,20 @@ const Admin = () => {
       <Navbar />
 
       <main className="container mx-auto px-4 py-24">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Manage your tech club content and settings</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-4xl font-bold">Admin Dashboard</h1>
+              <Badge variant={isSuperAdmin ? "default" : "secondary"} className="text-xs">
+                {isSuperAdmin ? "⭐ Super Admin" : "Admin"}
+              </Badge>
+            </div>
+            <p className="text-muted-foreground">Manage your tech club content and settings</p>
+          </div>
+          <Button variant="outline" onClick={handleSignOut} className="gap-2">
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </Button>
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
@@ -516,6 +591,11 @@ const Admin = () => {
             <TabsTrigger value="faq"><HelpCircle className="w-4 h-4 mr-2 hidden sm:inline" />FAQ</TabsTrigger>
             <TabsTrigger value="messages"><MessageSquare className="w-4 h-4 mr-2 hidden sm:inline" />Messages</TabsTrigger>
             <TabsTrigger value="certificates"><Award className="w-4 h-4 mr-2 hidden sm:inline" />Certs</TabsTrigger>
+            {isSuperAdmin && (
+              <TabsTrigger value="super-admin" className="bg-primary/10 text-primary">
+                <ShieldCheck className="w-4 h-4 mr-2" />Super Admin
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* ── Overview ── */}
@@ -1241,6 +1321,161 @@ const Admin = () => {
           <TabsContent value="certificates">
             <CertificateSender />
           </TabsContent>
+
+          {/* ── Super Admin Panel ── */}
+          {isSuperAdmin && (
+            <TabsContent value="super-admin">
+              <div className="space-y-8">
+                {/* ── Admin User Management ── */}
+                <Card className="border-primary/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <ShieldCheck className="w-5 h-5 text-primary" />
+                      Admin User Management
+                    </CardTitle>
+                    <CardDescription>
+                      Manage who has admin access. You can add, remove, block, or unblock admins.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Current admins list */}
+                    {superAdminLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {adminUsers.length === 0 ? (
+                          <div className="text-center py-8 border border-dashed rounded-xl">
+                            <p className="text-muted-foreground">No admin users configured yet.</p>
+                          </div>
+                        ) : (
+                          adminUsers.map(user => (
+                            <div
+                              key={user.user_id}
+                              className={`flex items-center justify-between p-4 rounded-lg border ${user.is_blocked ? "border-destructive/30 bg-destructive/5" : "border-border hover:bg-muted/50"
+                                } transition-colors`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${user.role === "super_admin" ? "bg-primary/20" : user.is_blocked ? "bg-destructive/20" : "bg-muted"
+                                  }`}>
+                                  {user.role === "super_admin" ? (
+                                    <ShieldCheck className="w-5 h-5 text-primary" />
+                                  ) : user.is_blocked ? (
+                                    <Ban className="w-5 h-5 text-destructive" />
+                                  ) : (
+                                    <UserCheck className="w-5 h-5 text-muted-foreground" />
+                                  )}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-medium text-sm">{user.full_name || user.user_id.slice(0, 8)}</p>
+                                    <Badge variant={user.role === "super_admin" ? "default" : "secondary"} className="text-[10px]">
+                                      {user.role === "super_admin" ? "⭐ Super" : "Admin"}
+                                    </Badge>
+                                    {user.is_blocked && (
+                                      <Badge variant="destructive" className="text-[10px]">BLOCKED</Badge>
+                                    )}
+                                  </div>
+                                  {user.block_reason && (
+                                    <p className="text-[11px] text-destructive mt-0.5">Reason: {user.block_reason}</p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Actions — can't modify own super_admin account */}
+                              {user.role !== "super_admin" && (
+                                <div className="flex items-center gap-2">
+                                  {user.is_blocked ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleUnblockAdmin(user.user_id, user.full_name)}
+                                      className="gap-1 text-xs"
+                                    >
+                                      <UserCheck className="w-3 h-3" /> Unblock
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleBlockAdmin(user.user_id, user.full_name)}
+                                      className="gap-1 text-xs text-orange-600 border-orange-600/30 hover:bg-orange-600/10"
+                                    >
+                                      <Ban className="w-3 h-3" /> Block
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRemoveAdmin(user.user_id, user.full_name)}
+                                    className="gap-1 text-xs text-destructive hover:bg-destructive/10"
+                                  >
+                                    <UserX className="w-3 h-3" /> Remove
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* ── Page Visibility Controls ── */}
+                <Card className="border-primary/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Eye className="w-5 h-5 text-primary" />
+                      Page Visibility Controls
+                    </CardTitle>
+                    <CardDescription>
+                      Toggle pages on or off. Hidden pages will show a 404 to visitors and be removed from the navigation.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {superAdminLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {pages.map(page => (
+                          <div
+                            key={page.id}
+                            className={`flex items-center justify-between p-4 rounded-lg border ${page.is_visible ? "border-border" : "border-orange-500/30 bg-orange-500/5"
+                              } transition-colors`}
+                          >
+                            <div className="flex items-center gap-3">
+                              {page.is_visible ? (
+                                <Eye className="w-5 h-5 text-green-500" />
+                              ) : (
+                                <EyeOff className="w-5 h-5 text-orange-500" />
+                              )}
+                              <div>
+                                <p className="font-medium text-sm">{page.page_name}</p>
+                                <p className="text-[11px] text-muted-foreground">{page.page_path}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className={`text-xs font-medium ${page.is_visible ? "text-green-500" : "text-orange-500"}`}>
+                                {page.is_visible ? "Visible" : "Hidden"}
+                              </span>
+                              <Switch
+                                checked={page.is_visible}
+                                onCheckedChange={() => handleTogglePage(page)}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       </main>
     </div>

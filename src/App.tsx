@@ -55,7 +55,14 @@ const App = () => (
             <Route path="/publications" element={<Publications />} />
             <Route path="/contact" element={<ContactPage />} />
 
-            <Route path="/admin" element={<Admin />} />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requireAdmin>
+                  {({ userRole }) => <Admin userRole={userRole} />}
+                </ProtectedRoute>
+              }
+            />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
