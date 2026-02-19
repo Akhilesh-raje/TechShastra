@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LayoutDashboard, FileText, Calendar, Image, Trophy, HelpCircle, MessageSquare, Users, Plus, Trash2, Github, Globe, Terminal, Loader2, Award, Newspaper, Eye, EyeOff, Book, ShieldCheck, LogOut, Ban, UserCheck, UserX, ToggleLeft, ToggleRight } from "lucide-react";
+import { LayoutDashboard, FileText, Calendar, Image, Trophy, HelpCircle, MessageSquare, Users, Plus, Trash2, Github, Globe, Terminal, Loader2, Award, Newspaper, Eye, EyeOff, Book, ShieldCheck, LogOut, Ban, UserCheck, UserX, ToggleLeft, ToggleRight, UserPlus, Phone, CalendarDays, Copy, Key } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +14,7 @@ import { addProject, deleteProject, getAllProjects, getStoredProjects, Project, 
 import { addBlogPost, deleteBlogPost, getAllBlogPosts, generateSlug, BlogPost, BlogCategory, updateBlogPost } from "@/lib/blogStore";
 import { addGalleryImage, deleteGalleryImage, getAllGalleryImages, GalleryImage } from "@/lib/galleryStore";
 import { addPublication, deletePublication, getAllPublications, Publication, PublicationType } from "@/lib/publicationStore";
-import { getAdminUsers, removeAdminUser, blockUser, unblockUser, getPageVisibility, togglePageVisibility, type AdminUser, type PageVisibility, type AdminRole } from "@/lib/adminStore";
+import { getAdminUsers, removeAdminUser, blockUser, unblockUser, getPageVisibility, togglePageVisibility, createAdminCredential, getStoredCredentials, deleteAdminCredential, toggleAdminCredBlock, type AdminUser, type PageVisibility, type AdminRole } from "@/lib/adminStore";
 import { useAdminPresence } from "@/hooks/use-admin-presence";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -204,11 +204,6 @@ const Admin = ({ userRole }: AdminProps) => {
     await togglePageVisibility(page.id, !page.is_visible, session.user.id);
     setPages(prev => prev.map(p => p.id === page.id ? { ...p, is_visible: !p.is_visible } : p));
     toast({ title: page.is_visible ? "Page Hidden" : "Page Visible", description: `${page.page_name} is now ${page.is_visible ? "hidden from" : "visible to"} visitors.` });
-  };
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate("/");
   };
 
   // ── Project helpers ──────────────────────────────────────────────────────────
@@ -593,6 +588,11 @@ const Admin = ({ userRole }: AdminProps) => {
   };
 
   const publishedBlogCount = blogPosts.filter(p => p.published).length;
+
+  const handleSignOut = () => {
+    sessionStorage.removeItem("ts_admin_session");
+    navigate("/auth", { replace: true });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -1362,6 +1362,154 @@ const Admin = ({ userRole }: AdminProps) => {
           {isSuperAdmin && (
             <TabsContent value="super-admin">
               <div className="space-y-8">
+                {/* ── Create Admin Credentials ── */}
+                <Card className="border-green-500/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <UserPlus className="w-5 h-5 text-green-500" />
+                      Create Admin Credentials
+                    </CardTitle>
+                    <CardDescription>
+                      Generate unique login credentials for a new admin. The system creates a username and password from their name, mobile, and date of birth.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const form = e.target as HTMLFormElement;
+                        const name = (form.elements.namedItem("cred-name") as HTMLInputElement).value;
+                        const mobile = (form.elements.namedItem("cred-mobile") as HTMLInputElement).value;
+                        const dob = (form.elements.namedItem("cred-dob") as HTMLInputElement).value;
+                        try {
+                          const cred = createAdminCredential(name, mobile, dob);
+                          toast({
+                            title: "✅ Admin Created!",
+                            description: `Username: ${cred.username} | Password: ${cred.password}`,
+                          });
+                          trackAction(`Created admin: ${name}`);
+                          form.reset();
+                          // Force re-render of cred list
+                          setAdminUsers(prev => [...prev]);
+                        } catch (err: any) {
+                          toast({ title: "Failed", description: err.message, variant: "destructive" });
+                        }
+                      }}
+                      className="space-y-4"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="cred-name" className="flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5" /> Full Name
+                          </Label>
+                          <Input id="cred-name" name="cred-name" placeholder="Rahul Sharma" required />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="cred-mobile" className="flex items-center gap-1.5">
+                            <Phone className="w-3.5 h-3.5" /> Mobile Number
+                          </Label>
+                          <Input id="cred-mobile" name="cred-mobile" placeholder="9876543210" required pattern="[0-9]{10,}" title="Enter a valid mobile number" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="cred-dob" className="flex items-center gap-1.5">
+                            <CalendarDays className="w-3.5 h-3.5" /> Date of Birth
+                          </Label>
+                          <Input id="cred-dob" name="cred-dob" type="date" required />
+                        </div>
+                      </div>
+                      <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">
+                        <Key className="w-4 h-4 mr-2" /> Generate & Save Credentials
+                      </Button>
+                    </form>
+
+                    {/* Existing Credentials List */}
+                    {(() => {
+                      const creds = getStoredCredentials();
+                      if (creds.length === 0) return null;
+                      return (
+                        <div className="mt-6 space-y-2">
+                          <h4 className="text-sm font-semibold mb-3">Active Admin Accounts ({creds.length})</h4>
+                          {creds.map(cred => (
+                            <div
+                              key={cred.id}
+                              className={`flex items-center justify-between p-3 rounded-lg border ${cred.is_blocked ? "border-destructive/30 bg-destructive/5" : "border-border hover:bg-muted/30"
+                                } transition-colors`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center ${cred.is_blocked ? "bg-destructive/20" : "bg-green-500/10"
+                                  }`}>
+                                  {cred.is_blocked ? (
+                                    <Ban className="w-4 h-4 text-destructive" />
+                                  ) : (
+                                    <UserCheck className="w-4 h-4 text-green-600" />
+                                  )}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-medium text-sm">{cred.name}</p>
+                                    {cred.is_blocked && (
+                                      <Badge variant="destructive" className="text-[10px]">BLOCKED</Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <Badge variant="outline" className="text-[10px] font-mono">
+                                      {cred.username}
+                                    </Badge>
+                                    <span className="text-[10px] text-muted-foreground">
+                                      {cred.mobile} · {new Date(cred.dob).toLocaleDateString('en-IN')}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  title="Copy credentials"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(`Username: ${cred.username}\nPassword: ${cred.password}`);
+                                    toast({ title: "Copied!", description: "Credentials copied to clipboard" });
+                                  }}
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant={cred.is_blocked ? "default" : "outline"}
+                                  onClick={() => {
+                                    toggleAdminCredBlock(cred.id, !cred.is_blocked);
+                                    toast({
+                                      title: cred.is_blocked ? "Unblocked" : "Blocked",
+                                      description: `${cred.name} has been ${cred.is_blocked ? "unblocked" : "blocked"}.`,
+                                    });
+                                    trackAction(`${cred.is_blocked ? "Unblocked" : "Blocked"} admin: ${cred.name}`);
+                                    setAdminUsers(prev => [...prev]); // force re-render
+                                  }}
+                                >
+                                  {cred.is_blocked ? "Unblock" : "Block"}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => {
+                                    deleteAdminCredential(cred.id);
+                                    toast({ title: "Deleted", description: `${cred.name}'s credentials have been removed.` });
+                                    trackAction(`Deleted admin: ${cred.name}`);
+                                    setAdminUsers(prev => [...prev]); // force re-render
+                                  }}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+
                 {/* ── Admin User Management ── */}
                 <Card className="border-primary/20">
                   <CardHeader>
@@ -1586,10 +1734,10 @@ const Admin = ({ userRole }: AdminProps) => {
                             <div
                               key={entry.id}
                               className={`flex items-start gap-3 p-2.5 rounded-lg text-xs transition-colors ${entry.is_login
-                                  ? "bg-green-500/5 border border-green-500/10"
-                                  : entry.is_logout
-                                    ? "bg-red-500/5 border border-red-500/10"
-                                    : "bg-muted/30 border border-transparent hover:border-border"
+                                ? "bg-green-500/5 border border-green-500/10"
+                                : entry.is_logout
+                                  ? "bg-red-500/5 border border-red-500/10"
+                                  : "bg-muted/30 border border-transparent hover:border-border"
                                 }`}
                             >
                               <div className="mt-0.5">
@@ -1606,8 +1754,8 @@ const Admin = ({ userRole }: AdminProps) => {
                                   <span className="font-semibold">{entry.full_name}</span>
                                   <span className="text-muted-foreground">—</span>
                                   <span className={`${entry.is_login ? "text-green-600 font-medium"
-                                      : entry.is_logout ? "text-red-500 font-medium"
-                                        : "text-foreground"
+                                    : entry.is_logout ? "text-red-500 font-medium"
+                                      : "text-foreground"
                                     }`}>
                                     {entry.action}
                                   </span>

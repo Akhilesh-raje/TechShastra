@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { getUserRole, isUserBlocked } from "@/lib/adminStore";
+import { authenticateCustom, type AdminRole } from "@/lib/adminStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,74 +18,49 @@ type AuthState = "login" | "checking" | "denied" | "blocked";
 
 const Auth = () => {
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [authState, setAuthState] = useState<AuthState>("login");
+  const [blockedName, setBlockedName] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  // Force sign-out on every mount — admin must re-authenticate each visit
-  useEffect(() => {
-    const forceLogout = async () => {
-      await supabase.auth.signOut();
-    };
-    forceLogout();
-  }, []);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Authentication Failed",
-        description: error.message,
-      });
-      setLoading(false);
-      return;
-    }
-
-    if (!data.session) {
-      toast({
-        variant: "destructive",
-        title: "No Session",
-        description: "Could not establish session.",
-      });
-      setLoading(false);
-      return;
-    }
-
-    // Check role and block status
     setAuthState("checking");
-    const userId = data.session.user.id;
 
-    // Check blocklist first
-    const blocked = await isUserBlocked(userId);
-    if (blocked) {
+    // Simulate a brief auth delay for UX
+    await new Promise((r) => setTimeout(r, 600));
+
+    // Authenticate against custom credentials
+    const result = authenticateCustom(username.trim(), password);
+
+    if (result.blocked) {
+      setBlockedName(result.name || "");
       setAuthState("blocked");
-      await supabase.auth.signOut();
       setLoading(false);
       return;
     }
 
-    // Check admin role
-    const role = await getUserRole(userId);
-    if (!role) {
+    if (!result.role) {
       setAuthState("denied");
-      await supabase.auth.signOut();
       setLoading(false);
       return;
     }
 
-    // Authorized — redirect to admin
+    // Store auth info in sessionStorage (auto-clears on tab close)
+    sessionStorage.setItem(
+      "ts_admin_session",
+      JSON.stringify({
+        role: result.role,
+        name: result.name,
+        authenticated_at: new Date().toISOString(),
+      })
+    );
+
     toast({
-      title: `Welcome, ${role === "super_admin" ? "Super Admin" : "Admin"}`,
+      title: `Welcome, ${result.role === "super_admin" ? "Super Admin" : result.name || "Admin"}`,
       description: "Access granted to the admin panel.",
     });
     navigate("/admin", { replace: true });
@@ -114,15 +88,16 @@ const Auth = () => {
           <CardContent>
             <form onSubmit={handleSignIn} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="admin-email">Admin Email</Label>
+                <Label htmlFor="admin-username">Username</Label>
                 <Input
-                  id="admin-email"
-                  type="email"
-                  placeholder="admin@techshastra.in"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="admin-username"
+                  type="text"
+                  placeholder="your_username@ts"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   required
                   disabled={authState === "checking"}
+                  autoComplete="off"
                 />
               </div>
               <div className="space-y-2">
@@ -134,6 +109,7 @@ const Auth = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={authState === "checking"}
+                  autoComplete="off"
                 />
               </div>
               <Button
@@ -153,7 +129,7 @@ const Auth = () => {
             <div className="mt-6 flex items-center gap-2 text-xs text-muted-foreground">
               <Lock className="w-3 h-3" />
               <span>
-                Session expires on exit. Re-authentication required each visit.
+                Session expires when you close the tab. Credentials are provided by the Super Admin.
               </span>
             </div>
           </CardContent>
@@ -176,8 +152,8 @@ const Auth = () => {
                 Access Denied
               </CardTitle>
               <CardDescription className="mt-2">
-                Your account does not have admin privileges. Contact the Super
-                Admin to request access.
+                Invalid credentials. If you're an authorized admin, contact the
+                Super Admin for your login details.
               </CardDescription>
             </div>
           </CardHeader>
@@ -187,11 +163,11 @@ const Auth = () => {
               className="w-full"
               onClick={() => {
                 setAuthState("login");
-                setEmail("");
+                setUsername("");
                 setPassword("");
               }}
             >
-              Try Different Credentials
+              Try Again
             </Button>
             <Button
               variant="ghost"
@@ -220,8 +196,9 @@ const Auth = () => {
                 Account Blocked
               </CardTitle>
               <CardDescription className="mt-2">
-                Your admin access has been revoked by the Super Admin. If you
-                believe this is an error, contact the President directly.
+                {blockedName ? `${blockedName}, your` : "Your"} admin access has
+                been revoked by the Super Admin. Contact the President directly
+                if you believe this is an error.
               </CardDescription>
             </div>
           </CardHeader>

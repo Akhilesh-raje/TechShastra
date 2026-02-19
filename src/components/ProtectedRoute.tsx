@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { getUserRole, isUserBlocked, type AdminRole } from "@/lib/adminStore";
+import { type AdminRole } from "@/lib/adminStore";
 import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
@@ -14,44 +13,23 @@ const ProtectedRoute = ({
   requireAdmin = false,
 }: ProtectedRouteProps) => {
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState<AdminRole | null>(null);
-  const [isBlocked, setIsBlocked] = useState(false);
 
   useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      setIsAuthenticated(false);
-      setLoading(false);
-      return;
+    // Check sessionStorage for custom auth session
+    const raw = sessionStorage.getItem("ts_admin_session");
+    if (raw) {
+      try {
+        const session = JSON.parse(raw);
+        if (session.role === "super_admin" || session.role === "admin") {
+          setUserRole(session.role as AdminRole);
+        }
+      } catch (_e) {
+        // invalid session
+      }
     }
-
-    setIsAuthenticated(true);
-    const userId = session.user.id;
-
-    // Check blocklist
-    const blocked = await isUserBlocked(userId);
-    if (blocked) {
-      setIsBlocked(true);
-      setLoading(false);
-      return;
-    }
-
-    // Check role
-    if (requireAdmin) {
-      const role = await getUserRole(userId);
-      setUserRole(role);
-    }
-
     setLoading(false);
-  };
+  }, []);
 
   if (loading) {
     return (
@@ -61,11 +39,7 @@ const ProtectedRoute = ({
     );
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  if (isBlocked) {
+  if (!userRole) {
     return <Navigate to="/auth" replace />;
   }
 

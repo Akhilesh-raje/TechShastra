@@ -195,3 +195,142 @@ export const getHiddenPages = async (): Promise<string[]> => {
 
     return (data || []).map((d: { page_path: string }) => d.page_path);
 };
+
+// ─── CUSTOM CREDENTIAL SYSTEM ────────────────────────────────────────
+
+const ADMIN_CREDS_KEY = "ts_admin_credentials";
+
+/** Hardcoded Super Admin credentials */
+const SUPER_ADMIN_CREDS = {
+    username: "techshastra@AK",
+    password: "7817030426@AK",
+};
+
+/** Stored admin credential */
+export interface AdminCredential {
+    id: string;
+    name: string;
+    mobile: string;
+    dob: string; // YYYY-MM-DD
+    username: string;
+    password: string;
+    created_at: string;
+    is_blocked: boolean;
+}
+
+/**
+ * Generate unique credentials from name, mobile, DOB.
+ * Username: first3chars_of_name + last4_of_mobile + "@ts"
+ * Password: DOB(ddmm) + first2chars_of_name + mid4_of_mobile + "!"
+ */
+export const generateCredentials = (
+    name: string,
+    mobile: string,
+    dob: string
+): { username: string; password: string } => {
+    const cleanName = name.trim().toLowerCase().replace(/\s+/g, "");
+    const cleanMobile = mobile.replace(/\D/g, "");
+    const dobParts = dob.split("-"); // YYYY-MM-DD
+
+    // Username: first3 of name + last4 of mobile + @ts
+    const namePrefix = cleanName.slice(0, 3);
+    const mobileSuffix = cleanMobile.slice(-4);
+    const username = `${namePrefix}${mobileSuffix}@ts`;
+
+    // Password: dd + mm + first2uppercase + mid4ofmobile + !
+    const dd = dobParts[2] || "01";
+    const mm = dobParts[1] || "01";
+    const nameUpper = name.trim().slice(0, 2).toUpperCase();
+    const mobileMid = cleanMobile.slice(3, 7);
+    const password = `${dd}${mm}${nameUpper}${mobileMid}!`;
+
+    return { username, password };
+};
+
+/** Get all stored admin credentials */
+export const getStoredCredentials = (): AdminCredential[] => {
+    try {
+        const raw = localStorage.getItem(ADMIN_CREDS_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch (_e) {
+        return [];
+    }
+};
+
+/** Save credentials to localStorage */
+const saveCredentials = (creds: AdminCredential[]) => {
+    localStorage.setItem(ADMIN_CREDS_KEY, JSON.stringify(creds));
+};
+
+/** Create a new admin with generated credentials */
+export const createAdminCredential = (
+    name: string,
+    mobile: string,
+    dob: string
+): AdminCredential => {
+    const { username, password } = generateCredentials(name, mobile, dob);
+    const newCred: AdminCredential = {
+        id: `adm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name: name.trim(),
+        mobile: mobile.trim(),
+        dob,
+        username,
+        password,
+        created_at: new Date().toISOString(),
+        is_blocked: false,
+    };
+
+    const existing = getStoredCredentials();
+    // Check for duplicate username
+    if (existing.some((c) => c.username === username)) {
+        throw new Error(`Credential already exists for similar name/mobile combo`);
+    }
+    saveCredentials([...existing, newCred]);
+    return newCred;
+};
+
+/** Delete an admin credential */
+export const deleteAdminCredential = (id: string) => {
+    const creds = getStoredCredentials().filter((c) => c.id !== id);
+    saveCredentials(creds);
+};
+
+/** Block/unblock an admin credential */
+export const toggleAdminCredBlock = (id: string, blocked: boolean) => {
+    const creds = getStoredCredentials().map((c) =>
+        c.id === id ? { ...c, is_blocked: blocked } : c
+    );
+    saveCredentials(creds);
+};
+
+/**
+ * Authenticate against custom credentials.
+ * Returns: { role: "super_admin" | "admin" | null, name: string | null, blocked: boolean }
+ */
+export const authenticateCustom = (
+    username: string,
+    password: string
+): { role: AdminRole | null; name: string | null; blocked: boolean } => {
+    // 1. Check Super Admin hardcoded creds
+    if (
+        username === SUPER_ADMIN_CREDS.username &&
+        password === SUPER_ADMIN_CREDS.password
+    ) {
+        return { role: "super_admin", name: "Akhilesh Raje", blocked: false };
+    }
+
+    // 2. Check stored admin credentials
+    const creds = getStoredCredentials();
+    const match = creds.find(
+        (c) => c.username === username && c.password === password
+    );
+
+    if (match) {
+        if (match.is_blocked) {
+            return { role: null, name: match.name, blocked: true };
+        }
+        return { role: "admin", name: match.name, blocked: false };
+    }
+
+    return { role: null, name: null, blocked: false };
+};
