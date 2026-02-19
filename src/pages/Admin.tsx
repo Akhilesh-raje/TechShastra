@@ -15,6 +15,7 @@ import { addBlogPost, deleteBlogPost, getAllBlogPosts, generateSlug, BlogPost, B
 import { addGalleryImage, deleteGalleryImage, getAllGalleryImages, GalleryImage } from "@/lib/galleryStore";
 import { addPublication, deletePublication, getAllPublications, Publication, PublicationType } from "@/lib/publicationStore";
 import { getAdminUsers, removeAdminUser, blockUser, unblockUser, getPageVisibility, togglePageVisibility, type AdminUser, type PageVisibility, type AdminRole } from "@/lib/adminStore";
+import { useAdminPresence } from "@/hooks/use-admin-presence";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import CertificateSender from "@/components/CertificateSender";
@@ -41,6 +42,33 @@ const Admin = ({ userRole }: AdminProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const isSuperAdmin = userRole === "super_admin";
+  const [activeTab, setActiveTab] = useState("overview");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserName, setCurrentUserName] = useState("Admin");
+
+  // Get current user info on mount
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setCurrentUserId(session.user.id);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        setCurrentUserName(profile?.full_name || session.user.email?.split("@")[0] || "Admin");
+      }
+    };
+    getUser();
+  }, []);
+
+  // Presence tracking (only active when Super Admin or for all admins to broadcast)
+  const { onlineAdmins, activityLog, trackAction } = useAdminPresence(
+    currentUserId,
+    currentUserName,
+    activeTab
+  );
 
   // ── Projects state ──────────────────────────────────────────────────────────
   const [projects, setProjects] = useState<Project[]>([]);
@@ -330,6 +358,7 @@ const Admin = ({ userRole }: AdminProps) => {
       setProjects(prev => [newProj, ...prev]);
       setFormData({ title: "", description: "", github: "", image: "", tags: "", lead: "", designer: "", status: "Completed", language: "javascript" });
       toast({ title: "Project Added", description: `${newProj.title} has been added to the showcase.` });
+      trackAction(`Added project: ${newProj.title}`);
     } catch (err: any) {
       console.error("Submission failed", err);
       toast({
@@ -346,6 +375,7 @@ const Admin = ({ userRole }: AdminProps) => {
     deleteProject(id);
     setProjects(prev => prev.filter(p => p.id !== id));
     toast({ title: "Project Deleted", description: "The project has been removed from the showcase." });
+    trackAction("Deleted a project");
   };
 
   // ── Blog helpers ─────────────────────────────────────────────────────────────
@@ -414,6 +444,7 @@ const Admin = ({ userRole }: AdminProps) => {
       setBlogForm({ title: "", slug: "", excerpt: "", content: "", image_url: "", category: "blog", author: "", published: true });
       setSlugManuallyEdited(false);
       toast({ title: "✅ Post Published!", description: `"${newPost.title}" is now live on the Blog page.` });
+      trackAction(`Published blog: ${newPost.title}`);
     } catch (err: any) {
       toast({
         title: "Publish Failed",
@@ -429,6 +460,7 @@ const Admin = ({ userRole }: AdminProps) => {
     deleteBlogPost(id);
     setBlogPosts(prev => prev.filter(p => p.id !== id));
     toast({ title: "Post Deleted", description: "The post has been removed." });
+    trackAction("Deleted a blog post");
   };
 
   const handleTogglePublish = (post: BlogPost) => {
@@ -479,6 +511,7 @@ const Admin = ({ userRole }: AdminProps) => {
       setGalleryImages(prev => [newImage, ...prev]);
       setGalleryForm({ title: "", description: "", image_url: "" });
       toast({ title: "✅ Image Added!", description: "The image is now live in the Gallery." });
+      trackAction("Added gallery image");
     } catch (err: any) {
       toast({
         title: "Upload Failed",
@@ -494,6 +527,7 @@ const Admin = ({ userRole }: AdminProps) => {
     deleteGalleryImage(id);
     setGalleryImages(prev => prev.filter(img => img.id !== id));
     toast({ title: "Image Deleted", description: "The image has been removed from the gallery." });
+    trackAction("Deleted gallery image");
   };
 
   // ── Publications helpers ────────────────────────────────────────────────────
@@ -545,6 +579,7 @@ const Admin = ({ userRole }: AdminProps) => {
       setPublications(prev => [newPub, ...prev]);
       setPubForm({ title: "", authors: "", description: "", type: "paper", link_url: "", file_url: "" });
       toast({ title: "✅ Publication Added!", description: "It is now visible in the Research & Books section." });
+      trackAction(`Added publication: ${pubForm.title}`);
     } catch (err: any) {
       toast({ title: "Save Failed", description: "Could not save the publication.", variant: "destructive" });
     }
@@ -554,6 +589,7 @@ const Admin = ({ userRole }: AdminProps) => {
     deletePublication(id);
     setPublications(prev => prev.filter(p => p.id !== id));
     toast({ title: "Publication Deleted", description: "Removed from the records." });
+    trackAction("Deleted a publication");
   };
 
   const publishedBlogCount = blogPosts.filter(p => p.published).length;
@@ -579,7 +615,7 @@ const Admin = ({ userRole }: AdminProps) => {
           </Button>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-6">
+        <Tabs defaultValue="overview" className="space-y-6" onValueChange={setActiveTab}>
           <TabsList className="flex flex-wrap w-full h-auto bg-muted/50 p-1 gap-1">
             <TabsTrigger value="overview"><LayoutDashboard className="w-4 h-4 mr-2" />Overview</TabsTrigger>
             <TabsTrigger value="projects"><FileText className="w-4 h-4 mr-2 hidden sm:inline" />Projects</TabsTrigger>
@@ -1471,6 +1507,122 @@ const Admin = ({ userRole }: AdminProps) => {
                         ))}
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+
+                {/* ── Live Activity Monitor ── */}
+                <Card className="border-green-500/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="w-5 h-5 text-green-500" />
+                      Live Activity Monitor
+                      <span className="relative flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                      </span>
+                    </CardTitle>
+                    <CardDescription>
+                      Real-time view of admin activity. See who's online, what tab they're on, and their last action.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Online Admins */}
+                    <div>
+                      <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                        Currently Online ({onlineAdmins.length})
+                      </h4>
+                      {onlineAdmins.length === 0 ? (
+                        <div className="text-center py-6 border border-dashed rounded-xl">
+                          <p className="text-muted-foreground text-sm">No admins currently online</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {onlineAdmins.map(admin => (
+                            <div
+                              key={admin.user_id}
+                              className="flex items-center justify-between p-3 rounded-lg bg-green-500/5 border border-green-500/20"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="relative">
+                                  <div className="w-9 h-9 rounded-full bg-green-500/20 flex items-center justify-center">
+                                    <Users className="w-4 h-4 text-green-600" />
+                                  </div>
+                                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-background"></span>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">{admin.full_name}</p>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                                      💻 {admin.current_tab}
+                                    </Badge>
+                                    <span className="text-[10px] text-muted-foreground">
+                                      {admin.last_action}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <Badge variant="default" className="bg-green-500 text-[10px]">
+                                  🟢 LIVE
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Activity Feed */}
+                    <div>
+                      <h4 className="text-sm font-semibold mb-3">Activity Feed</h4>
+                      {activityLog.length === 0 ? (
+                        <div className="text-center py-6 border border-dashed rounded-xl">
+                          <p className="text-muted-foreground text-sm">No activity recorded yet. Actions will appear here in real-time.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-2">
+                          {activityLog.map(entry => (
+                            <div
+                              key={entry.id}
+                              className={`flex items-start gap-3 p-2.5 rounded-lg text-xs transition-colors ${entry.is_login
+                                  ? "bg-green-500/5 border border-green-500/10"
+                                  : entry.is_logout
+                                    ? "bg-red-500/5 border border-red-500/10"
+                                    : "bg-muted/30 border border-transparent hover:border-border"
+                                }`}
+                            >
+                              <div className="mt-0.5">
+                                {entry.is_login ? (
+                                  <span className="text-green-500 text-base">🟢</span>
+                                ) : entry.is_logout ? (
+                                  <span className="text-red-500 text-base">🔴</span>
+                                ) : (
+                                  <span className="text-blue-400 text-base">▶️</span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-semibold">{entry.full_name}</span>
+                                  <span className="text-muted-foreground">—</span>
+                                  <span className={`${entry.is_login ? "text-green-600 font-medium"
+                                      : entry.is_logout ? "text-red-500 font-medium"
+                                        : "text-foreground"
+                                    }`}>
+                                    {entry.action}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-muted-foreground">
+                                  <span>💻 {entry.tab}</span>
+                                  <span>·</span>
+                                  <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               </div>
