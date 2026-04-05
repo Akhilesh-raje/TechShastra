@@ -99,17 +99,19 @@ export const getAdminUsers = async (): Promise<AdminUser[]> => {
 export const addAdminByEmail = async (
     email: string
 ): Promise<{ success: boolean; error?: string }> => {
-    // Look up the user in auth — we need to find them by email in profiles or auth
-    // Since we can't query auth.users from client, we'll search profiles
-    // The user must have signed up first
-    const { data: authData } = await supabase.auth.admin.listUsers();
+    // Search for user in profiles table instead of auth.admin
+    // Note: requires 'email' column to exist in profiles
+    const { data: profile, error: searchError } = await (supabase
+        .from("profiles") as any)
+        .select("id")
+        .eq("email", email)
+        .maybeSingle();
 
-    if (!authData) {
-        return { success: false, error: "Cannot access user list" };
+    if (searchError) {
+        return { success: false, error: "Error searching for user" };
     }
 
-    const user = authData.users.find((u) => u.email === email);
-    if (!user) {
+    if (!profile) {
         return { success: false, error: `No account found for ${email}. User must sign up first.` };
     }
 
@@ -117,7 +119,7 @@ export const addAdminByEmail = async (
     const { data: existing } = await supabase
         .from("user_roles")
         .select("id")
-        .eq("user_id", user.id)
+        .eq("user_id", profile.id)
         .maybeSingle();
 
     if (existing) {
@@ -126,7 +128,7 @@ export const addAdminByEmail = async (
 
     const { error } = await supabase
         .from("user_roles")
-        .insert({ user_id: user.id, role: "admin" });
+        .insert({ user_id: profile.id, role: "admin" });
 
     if (error) return { success: false, error: error.message };
     return { success: true };
@@ -212,6 +214,7 @@ export interface AdminCredential {
     name: string;
     mobile: string;
     dob: string; // YYYY-MM-DD
+    email: string;
     username: string;
     password: string;
     created_at: string;
@@ -266,7 +269,8 @@ const saveCredentials = (creds: AdminCredential[]) => {
 export const createAdminCredential = (
     name: string,
     mobile: string,
-    dob: string
+    dob: string,
+    email: string = ""
 ): AdminCredential => {
     const { username, password } = generateCredentials(name, mobile, dob);
     const newCred: AdminCredential = {
@@ -274,6 +278,7 @@ export const createAdminCredential = (
         name: name.trim(),
         mobile: mobile.trim(),
         dob,
+        email: email.trim().toLowerCase(),
         username,
         password,
         created_at: new Date().toISOString(),

@@ -25,7 +25,6 @@ const Navbar = () => {
     { label: "Research & Books", href: "/publications" },
     { label: "Resources", href: "/resources" },
     { label: "Contact", href: "/contact" },
-    { label: "Admin", href: "/admin" },
   ];
 
   return (

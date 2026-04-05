@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LayoutDashboard, FileText, Calendar, Image, Trophy, HelpCircle, MessageSquare, Users, Plus, Trash2, Github, Globe, Terminal, Loader2, Award, Newspaper, Eye, EyeOff, Book, ShieldCheck, LogOut, Ban, UserCheck, UserX, ToggleLeft, ToggleRight, UserPlus, Phone, CalendarDays, Copy, Key } from "lucide-react";
+import { LayoutDashboard, FileText, Calendar, Image, Trophy, HelpCircle, MessageSquare, Users, Plus, Trash2, Github, Globe, Terminal, Loader2, Award, Newspaper, Eye, EyeOff, Book, ShieldCheck, LogOut, Ban, UserCheck, UserX, ToggleLeft, ToggleRight, UserPlus, Phone, CalendarDays, Copy, Key, Mail, RotateCcw, ClipboardList, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +15,7 @@ import { addBlogPost, deleteBlogPost, getAllBlogPosts, generateSlug, BlogPost, B
 import { addGalleryImage, deleteGalleryImage, getAllGalleryImages, GalleryImage } from "@/lib/galleryStore";
 import { addPublication, deletePublication, getAllPublications, Publication, PublicationType } from "@/lib/publicationStore";
 import { getAdminUsers, removeAdminUser, blockUser, unblockUser, getPageVisibility, togglePageVisibility, createAdminCredential, getStoredCredentials, deleteAdminCredential, toggleAdminCredBlock, type AdminUser, type PageVisibility, type AdminRole } from "@/lib/adminStore";
+import { addLogEntry, clearLog, getLogEntries, revertEntry, saveCredentialsRaw, type LogEntry } from "@/lib/activityLogStore";
 import { useAdminPresence } from "@/hooks/use-admin-presence";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -154,6 +155,15 @@ const Admin = ({ userRole }: AdminProps) => {
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [blockReason, setBlockReason] = useState("");
   const [superAdminLoading, setSuperAdminLoading] = useState(false);
+  // credential list is kept in state so changes re-render without page refresh
+  const [credsList, setCredsList] = useState(() => getStoredCredentials());
+  // persistent activity log
+  const [logEntries, setLogEntries] = useState<LogEntry[]>(() => getLogEntries());
+
+  const refreshCredsAndLog = () => {
+    setCredsList(getStoredCredentials());
+    setLogEntries(getLogEntries());
+  };
 
   // ── Init ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1381,16 +1391,38 @@ const Admin = ({ userRole }: AdminProps) => {
                         const name = (form.elements.namedItem("cred-name") as HTMLInputElement).value;
                         const mobile = (form.elements.namedItem("cred-mobile") as HTMLInputElement).value;
                         const dob = (form.elements.namedItem("cred-dob") as HTMLInputElement).value;
+                        const email = (form.elements.namedItem("cred-email") as HTMLInputElement).value;
                         try {
-                          const cred = createAdminCredential(name, mobile, dob);
+                          const cred = createAdminCredential(name, mobile, dob, email);
+                          // Log creation
+                          addLogEntry({
+                            actor: currentUserName,
+                            action: `Created admin credentials for ${cred.name}${email ? ` (${email})` : ""}`,
+                            type: "create_credential",
+                            revertible: true,
+                            credentialSnapshot: cred,
+                          });
+                          // Send credentials via email
+                          if (email) {
+                            const subject = encodeURIComponent("Your TECHSHASTRA Admin Credentials");
+                            const body = encodeURIComponent(
+                              `Hello ${cred.name},\n\nYour admin credentials for the TECHSHASTRA Admin Panel have been created.\n\n` +
+                              `🔑 Username: ${cred.username}\n🔒 Password: ${cred.password}\n\n` +
+                              `Please login at: ${window.location.origin}/auth\n\n` +
+                              `Keep these credentials private. Do not share them with anyone.\n\n` +
+                              `Regards,\nTECHSHASTRA Super Admin`
+                            );
+                            window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+                          }
                           toast({
                             title: "✅ Admin Created!",
-                            description: `Username: ${cred.username} | Password: ${cred.password}`,
+                            description: email
+                              ? `Credentials sent to ${email}. Username: ${cred.username}`
+                              : `Username: ${cred.username} | Password: ${cred.password}`,
                           });
                           trackAction(`Created admin: ${name}`);
                           form.reset();
-                          // Force re-render of cred list
-                          setAdminUsers(prev => [...prev]);
+                          refreshCredsAndLog();
                         } catch (err: any) {
                           toast({ title: "Failed", description: err.message, variant: "destructive" });
                         }
@@ -1417,96 +1449,150 @@ const Admin = ({ userRole }: AdminProps) => {
                           <Input id="cred-dob" name="cred-dob" type="date" required />
                         </div>
                       </div>
+                      {/* Email field — full width */}
+                      <div className="space-y-2">
+                        <Label htmlFor="cred-email" className="flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5" /> Email Address
+                          <span className="text-[10px] text-muted-foreground font-normal bg-muted px-2 py-0.5 rounded-full">credentials sent here</span>
+                        </Label>
+                        <Input
+                          id="cred-email"
+                          name="cred-email"
+                          type="email"
+                          placeholder="admin@example.com"
+                          className="w-full"
+                        />
+                        <p className="text-[10px] text-muted-foreground px-1">
+                          If provided, your default mail app will open pre-filled with the credentials to send.
+                        </p>
+                      </div>
                       <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">
                         <Key className="w-4 h-4 mr-2" /> Generate & Save Credentials
                       </Button>
                     </form>
 
                     {/* Existing Credentials List */}
-                    {(() => {
-                      const creds = getStoredCredentials();
-                      if (creds.length === 0) return null;
-                      return (
-                        <div className="mt-6 space-y-2">
-                          <h4 className="text-sm font-semibold mb-3">Active Admin Accounts ({creds.length})</h4>
-                          {creds.map(cred => (
-                            <div
-                              key={cred.id}
-                              className={`flex items-center justify-between p-3 rounded-lg border ${cred.is_blocked ? "border-destructive/30 bg-destructive/5" : "border-border hover:bg-muted/30"
-                                } transition-colors`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className={`w-9 h-9 rounded-full flex items-center justify-center ${cred.is_blocked ? "bg-destructive/20" : "bg-green-500/10"
-                                  }`}>
-                                  {cred.is_blocked ? (
-                                    <Ban className="w-4 h-4 text-destructive" />
-                                  ) : (
-                                    <UserCheck className="w-4 h-4 text-green-600" />
+                    {credsList.length > 0 && (
+                      <div className="mt-6 space-y-2">
+                        <h4 className="text-sm font-semibold mb-3">Active Admin Accounts ({credsList.length})</h4>
+                        {credsList.map(cred => (
+                          <div
+                            key={cred.id}
+                            className={`flex items-center justify-between p-3 rounded-lg border ${cred.is_blocked ? "border-destructive/30 bg-destructive/5" : "border-border hover:bg-muted/30"
+                              } transition-colors`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-9 h-9 rounded-full flex items-center justify-center ${cred.is_blocked ? "bg-destructive/20" : "bg-green-500/10"
+                                }`}>
+                                {cred.is_blocked ? (
+                                  <Ban className="w-4 h-4 text-destructive" />
+                                ) : (
+                                  <UserCheck className="w-4 h-4 text-green-600" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium text-sm">{cred.name}</p>
+                                  {cred.is_blocked && (
+                                    <Badge variant="destructive" className="text-[10px]">BLOCKED</Badge>
                                   )}
                                 </div>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-medium text-sm">{cred.name}</p>
-                                    {cred.is_blocked && (
-                                      <Badge variant="destructive" className="text-[10px]">BLOCKED</Badge>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2 mt-0.5">
-                                    <Badge variant="outline" className="text-[10px] font-mono">
-                                      {cred.username}
-                                    </Badge>
-                                    <span className="text-[10px] text-muted-foreground">
-                                      {cred.mobile} · {new Date(cred.dob).toLocaleDateString('en-IN')}
-                                    </span>
-                                  </div>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <Badge variant="outline" className="text-[10px] font-mono">
+                                    {cred.username}
+                                  </Badge>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {cred.mobile} · {new Date(cred.dob).toLocaleDateString('en-IN')}
+                                  </span>
                                 </div>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  title="Copy credentials"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(`Username: ${cred.username}\nPassword: ${cred.password}`);
-                                    toast({ title: "Copied!", description: "Credentials copied to clipboard" });
-                                  }}
-                                >
-                                  <Copy className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant={cred.is_blocked ? "default" : "outline"}
-                                  onClick={() => {
-                                    toggleAdminCredBlock(cred.id, !cred.is_blocked);
-                                    toast({
-                                      title: cred.is_blocked ? "Unblocked" : "Blocked",
-                                      description: `${cred.name} has been ${cred.is_blocked ? "unblocked" : "blocked"}.`,
-                                    });
-                                    trackAction(`${cred.is_blocked ? "Unblocked" : "Blocked"} admin: ${cred.name}`);
-                                    setAdminUsers(prev => [...prev]); // force re-render
-                                  }}
-                                >
-                                  {cred.is_blocked ? "Unblock" : "Block"}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={() => {
-                                    deleteAdminCredential(cred.id);
-                                    toast({ title: "Deleted", description: `${cred.name}'s credentials have been removed.` });
-                                    trackAction(`Deleted admin: ${cred.name}`);
-                                    setAdminUsers(prev => [...prev]); // force re-render
-                                  }}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
+                                {cred.email && (
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <Mail className="w-3 h-3 text-muted-foreground" />
+                                    <span className="text-[10px] text-muted-foreground">{cred.email}</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
+                            <div className="flex items-center gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                title="Copy credentials"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(`Username: ${cred.username}\nPassword: ${cred.password}`);
+                                  toast({ title: "Copied!", description: "Credentials copied to clipboard" });
+                                }}
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </Button>
+                              {cred.email && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  title="Resend credentials by email"
+                                  onClick={() => {
+                                    const subject = encodeURIComponent("Your TECHSHASTRA Admin Credentials");
+                                    const body = encodeURIComponent(
+                                      `Hello ${cred.name},\n\nYour admin credentials for the TECHSHASTRA Admin Panel:\n\n` +
+                                      `🔑 Username: ${cred.username}\n🔒 Password: ${cred.password}\n\n` +
+                                      `Login at: ${window.location.origin}/auth\n\nKeep these private.\n\nRegards,\nTECHSHASTRA Super Admin`
+                                    );
+                                    window.open(`mailto:${cred.email}?subject=${subject}&body=${body}`);
+                                    toast({ title: "Mail Opened", description: `Email draft opened for ${cred.email}` });
+                                  }}
+                                >
+                                  <Mail className="w-3.5 h-3.5" />
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant={cred.is_blocked ? "default" : "outline"}
+                                onClick={() => {
+                                  const wasBlocked = cred.is_blocked;
+                                  toggleAdminCredBlock(cred.id, !wasBlocked);
+                                  addLogEntry({
+                                    actor: currentUserName,
+                                    action: `${wasBlocked ? "Unblocked" : "Blocked"} admin: ${cred.name}`,
+                                    type: wasBlocked ? "unblock_credential" : "block_credential",
+                                    revertible: true,
+                                    credentialId: cred.id,
+                                    credentialSnapshot: cred,
+                                  });
+                                  toast({
+                                    title: wasBlocked ? "Unblocked" : "Blocked",
+                                    description: `${cred.name} has been ${wasBlocked ? "unblocked" : "blocked"}.`,
+                                  });
+                                  trackAction(`${wasBlocked ? "Unblocked" : "Blocked"} admin: ${cred.name}`);
+                                  refreshCredsAndLog();
+                                }}
+                              >
+                                {cred.is_blocked ? "Unblock" : "Block"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  addLogEntry({
+                                    actor: currentUserName,
+                                    action: `Deleted admin credentials for ${cred.name}`,
+                                    type: "delete_credential",
+                                    revertible: true,
+                                    credentialSnapshot: { ...cred },
+                                  });
+                                  deleteAdminCredential(cred.id);
+                                  toast({ title: "Deleted", description: `${cred.name}'s credentials removed. You can revert this from the Activity Log.` });
+                                  trackAction(`Deleted admin: ${cred.name}`);
+                                  refreshCredsAndLog();
+                                }}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -1771,6 +1857,96 @@ const Admin = ({ userRole }: AdminProps) => {
                         </div>
                       )}
                     </div>
+                  </CardContent>
+                </Card>
+                {/* ── Persistent Activity Log ── */}
+                <Card className="border-amber-500/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <ClipboardList className="w-5 h-5 text-amber-500" />
+                        Super Admin Activity Log
+                      </span>
+                      {logEntries.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs text-muted-foreground hover:text-destructive"
+                          onClick={() => {
+                            clearLog();
+                            refreshCredsAndLog();
+                            toast({ title: "Log Cleared", description: "All activity log entries have been removed." });
+                          }}
+                        >
+                          <X className="w-3.5 h-3.5 mr-1" /> Clear Log
+                        </Button>
+                      )}
+                    </CardTitle>
+                    <CardDescription>
+                      Every Super Admin action is recorded here. Reversible actions can be undone with the Revert button.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {logEntries.length === 0 ? (
+                      <div className="text-center py-8 border border-dashed rounded-xl">
+                        <ClipboardList className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-30" />
+                        <p className="text-muted-foreground text-sm">No actions recorded yet. Actions will appear here.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                        {logEntries.map(entry => (
+                          <div
+                            key={entry.id}
+                            className={`flex items-start justify-between gap-3 p-3 rounded-lg border text-xs ${entry.type === "create_credential"
+                                ? "border-green-500/20 bg-green-500/5"
+                                : entry.type === "delete_credential"
+                                  ? "border-destructive/20 bg-destructive/5"
+                                  : entry.type === "block_credential"
+                                    ? "border-orange-500/20 bg-orange-500/5"
+                                    : entry.type === "unblock_credential"
+                                      ? "border-blue-500/20 bg-blue-500/5"
+                                      : "border-border bg-muted/20"
+                              }`}
+                          >
+                            <div className="flex gap-2.5 flex-1 min-w-0">
+                              <span className="text-base mt-0.5 flex-shrink-0">
+                                {entry.type === "create_credential" ? "✅"
+                                  : entry.type === "delete_credential" ? "🗑️"
+                                    : entry.type === "block_credential" ? "🚫"
+                                      : entry.type === "unblock_credential" ? "✔️"
+                                        : "📋"}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium leading-snug">{entry.action}</p>
+                                <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
+                                  <span>👤 {entry.actor}</span>
+                                  <span>·</span>
+                                  <span>{new Date(entry.timestamp).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                                </div>
+                              </div>
+                            </div>
+                            {entry.revertible && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-[10px] h-7 px-2 flex-shrink-0 gap-1 border-amber-500/40 text-amber-600 hover:bg-amber-500/10"
+                                onClick={() => {
+                                  const result = revertEntry(entry.id, saveCredentialsRaw);
+                                  if (result.success) {
+                                    toast({ title: "↩️ Reverted", description: result.message });
+                                  } else {
+                                    toast({ title: "Revert Failed", description: result.message, variant: "destructive" });
+                                  }
+                                  refreshCredsAndLog();
+                                }}
+                              >
+                                <RotateCcw className="w-3 h-3" /> Revert
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
