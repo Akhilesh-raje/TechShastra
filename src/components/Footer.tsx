@@ -8,9 +8,12 @@ const Footer = () => {
         <div className="grid md:grid-cols-3 gap-12 mb-12">
           {/* Brand */}
           <div className="space-y-4">
-            <span className="font-heading text-lg tracking-[0.15em] font-light text-foreground">
-              TECHSHASTRA
-            </span>
+            <div className="flex items-center gap-3">
+              <img src="/favicon.ico" alt="TECHSHASTRA Logo" className="w-8 h-8 object-contain" />
+              <span className="font-heading text-lg tracking-[0.15em] font-light text-foreground">
+                TECHSHASTRA
+              </span>
+            </div>
             <p className="text-sm font-light text-foreground/35 leading-relaxed">
               Innovate · Create · Dominate<br />
               The official technical club of UTU Dehradun.
@@ -21,7 +24,7 @@ const Footer = () => {
           <div>
             <h3 className="text-xs font-light tracking-widest uppercase text-foreground/30 mb-5">Quick Links</h3>
             <ul className="space-y-3 text-sm font-light">
-              <li><a href="/#about" className="text-foreground/40 hover:text-foreground transition-colors duration-300">About Us</a></li>
+              <li><Link to="/about" className="text-foreground/40 hover:text-foreground transition-colors duration-300">About Us</Link></li>
               <li><Link to="/projects" className="text-foreground/40 hover:text-foreground transition-colors duration-300">Projects</Link></li>
               <li><Link to="/events" className="text-foreground/40 hover:text-foreground transition-colors duration-300">Events</Link></li>
               <li><a href="/#team" className="text-foreground/40 hover:text-foreground transition-colors duration-300">Team</a></li>

@@ -1,3 +1,10 @@
+/**
+ * Index Page
+ * 
+ * The main landing page of the TECHSHASTRA website.
+ * It assembles various sections like Hero, About, Domains, Team, etc.
+ * to provide a comprehensive overview of the club.
+ */
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import About from "@/components/About";

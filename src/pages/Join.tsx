@@ -1,3 +1,9 @@
+/**
+ * Join Page
+ * 
+ * Provides membership application forms for students, mentors, and partners.
+ * Uses react-hook-form with zod validation for form management.
+ */
 import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";

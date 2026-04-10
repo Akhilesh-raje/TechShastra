@@ -1,19 +1,27 @@
 export type PublicationType = "paper" | "book";
 
+/**
+ * Represents a publication (research paper or book) in the TECHSHASTRA archive.
+ */
 export interface Publication {
-    id: string;
-    title: string;
-    authors: string;
-    description: string;
-    type: PublicationType;
-    file_url?: string;
-    link_url?: string;
-    published_at: number;
+    id: string;          // Unique identifier for the publication
+    title: string;       // Public title of the work
+    authors: string;     // List of authors (comma separated)
+    description: string; // Brief abstract or summary
+    type: PublicationType; // "paper" or "book"
+    file_url?: string;    // Optional URL to the full PDF or document
+    link_url?: string;    // Optional external link (e.g., arXiv, IEEE)
+    published_at: number; // Unix timestamp of publication
 }
 
 const STORAGE_KEY = "techshastra_publications";
 
+/**
+ * DEMO DATA: Hardcoded publications used for initial demonstration.
+ * Feel free to remove or replace these in your final application.
+ */
 export const samplePublications: Publication[] = [
+    /*
     {
         id: "pub-sample-1",
         title: "Advancements in Decentralized AI Systems",
@@ -41,6 +49,7 @@ export const samplePublications: Publication[] = [
         link_url: "https://ieeexplore.ieee.org/document/8761332", // Sample link
         published_at: 1739577600000,
     }
+    */
 ];
 
 const generateId = () => {
@@ -55,8 +64,13 @@ export const getStoredPublications = (): Publication[] => {
     return stored ? JSON.parse(stored) : [];
 };
 
+/**
+ * Retrieves all publications, including locally stored ones and demo data.
+ * @returns Array of publications sorted by date (newest first)
+ */
 export const getAllPublications = (): Publication[] => {
     const stored = getStoredPublications();
+    // In production, you might want to remove samplePublications
     return [...stored, ...samplePublications].sort((a, b) => b.published_at - a.published_at);
 };
 

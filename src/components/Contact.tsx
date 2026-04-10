@@ -1,6 +1,12 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mail, Phone, MapPin, Linkedin, Instagram } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Mail, Phone, MapPin, Linkedin, Instagram, Send, CheckCircle2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const contactInfo = [
   { icon: Mail, label: "Email", value: "vmsb.utu.ddn.2023@gmail.com", link: "mailto:vmsb.utu.ddn.2023@gmail.com" },
@@ -17,10 +23,54 @@ const socialLinks = [
 const leadershipContacts = [
   { name: "Amitesh Kumar", role: "Vice-President", email: "amitesh.kumar@example.com", phone: "+91 7439587546" },
   { name: "Akhilesh Raje", role: "President", email: "akhilesh.raje@example.com", phone: "+91 7817030426" },
-  { name: "Pratyush Shrivastava", role: "Secretary", email: "pratyush@example.com", phone: "+91 XXXXXXXXXX" },
+  { name: "Pratyush Shrivastava", role: "Secretary", email: "pratyushsrivastava875@gmail.com", phone: "+91 8077868866" },
 ];
 
 const Contact = () => {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    subject: "",
+    message: ""
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from("contact_messages")
+        .insert([
+          {
+            name: formData.name,
+            email: formData.email,
+            subject: formData.subject,
+            message: formData.message,
+          }
+        ]);
+
+      if (error) throw error;
+
+      setSubmitted(true);
+      toast({
+        title: "Message Sent",
+        description: "We've received your message and will get back to you soon.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again later.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <section id="contact" className="py-24 px-4 bg-background">
       <div className="container mx-auto max-w-5xl">
@@ -39,8 +89,153 @@ const Contact = () => {
           </div>
         </div>
 
+        {/* Form and Info Grid */}
+        <div className="grid lg:grid-cols-5 gap-12 mb-20">
+          {/* Contact Form */}
+          <div className="lg:col-span-3">
+            {submitted ? (
+              <Card className="h-full flex flex-col items-center justify-center p-10 text-center space-y-6 bg-primary/5 border-primary/20 rounded-3xl">
+                <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-10 h-10 text-primary" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-bold">Thank You!</h3>
+                  <p className="text-muted-foreground">Your message has been successfully delivered to our team.</p>
+                </div>
+                <Button variant="outline" onClick={() => setSubmitted(false)}>Send Another Message</Button>
+              </Card>
+            ) : (
+              <Card className="border-0 shadow-xl shadow-primary/5 rounded-3xl overflow-hidden">
+                <CardHeader className="bg-primary/5 pb-8">
+                  <CardTitle>Send a Message</CardTitle>
+                  <CardDescription>Fill out the form below and we'll get back to you as soon as possible.</CardDescription>
+                </CardHeader>
+                <CardContent className="p-8">
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Full Name</Label>
+                        <Input
+                          id="name"
+                          placeholder="John Doe"
+                          required
+                          value={formData.name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email Address</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="john@example.com"
+                          required
+                          value={formData.email}
+                          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="subject">Subject</Label>
+                      <Input
+                        id="subject"
+                        placeholder="Inquiry about..."
+                        required
+                        value={formData.subject}
+                        onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="message">Your Message</Label>
+                      <Textarea
+                        id="message"
+                        placeholder="Write your message here..."
+                        rows={5}
+                        required
+                        value={formData.message}
+                        onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
+                      />
+                    </div>
+                    <Button type="submit" className="w-full h-12 text-lg font-bold shadow-lg shadow-primary/20" disabled={loading}>
+                      {loading ? "Sending..." : (
+                        <span className="flex items-center gap-2">
+                          <Send className="w-5 h-5" /> Send Message
+                        </span>
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Quick Info */}
+          <div className="lg:col-span-2 space-y-6">
+            <Card className="glass rounded-3xl border-0 p-8 space-y-8 h-full">
+              <div className="space-y-6">
+                <h3 className="text-xl font-heading font-light tracking-wider">Office Details</h3>
+                <div className="flex gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <MapPin className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Headquarters</p>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Uttarakhand Technical University, SUDHOWALA<br />
+                      Post Office Chandanwadi, Prem Nagar<br />
+                      Dehradun, Uttarakhand
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <Mail className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">General Support</p>
+                    <p className="text-xs text-muted-foreground mt-1">vmsb.utu.ddn.2023@gmail.com</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-foreground/5">
+                <p className="text-xs font-light tracking-widest uppercase text-foreground/30 mb-4">Connect With Us</p>
+                <div className="flex gap-3">
+                  {socialLinks.map((social, index) => {
+                    const Icon = social.icon;
+                    return (
+                      <Button
+                        key={index}
+                        variant="ghost"
+                        size="icon"
+                        className="w-10 h-10 rounded-xl bg-muted hover:bg-primary/20 text-muted-foreground hover:text-primary transition-all overflow-hidden"
+                        asChild
+                      >
+                        <a href={social.link} target="_blank" rel="noopener noreferrer">
+                          <Icon className="w-5 h-5" />
+                        </a>
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-foreground/5">
+                <h4 className="text-xs font-bold text-primary mb-2 uppercase tracking-tighter">Response Time</h4>
+                <p className="text-[10px] text-muted-foreground italic">
+                  Our core team typically responds to strategic inquiries within 24-48 business hours.
+                </p>
+              </div>
+            </Card>
+          </div>
+        </div>
+
         {/* Leadership Cards */}
-        <div className="grid md:grid-cols-3 gap-6 mb-16">
+        <div className="text-center mb-10">
+          <h3 className="text-xl font-heading font-light tracking-widest uppercase text-foreground/40">Direct Leadership Access</h3>
+        </div>
+        <div className="grid md:grid-cols-3 gap-6">
           {leadershipContacts.map((lead, index) => (
             <Card key={index} className="glass border-0 rounded-3xl overflow-hidden hover:scale-[1.02] transition-all duration-500 group">
               <CardContent className="p-8 space-y-6">
@@ -64,76 +259,6 @@ const Contact = () => {
               </CardContent>
             </Card>
           ))}
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* General Contact Info */}
-          <div className="space-y-4">
-            <Card className="glass rounded-3xl border-0 p-10 space-y-6">
-              <h3 className="text-xl font-heading font-light tracking-wider">Office Location</h3>
-              <div className="flex gap-5">
-                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <MapPin className="w-6 h-6 text-primary" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-light text-foreground/60 leading-relaxed">
-                    Uttarakhand Technical University<br />
-                    Post Office Chandanwadi, Prem Nagar<br />
-                    Sudhowala, Dehradun, Uttarakhand
-                  </p>
-                </div>
-              </div>
-              <div className="pt-6 border-t border-foreground/5">
-                <p className="text-xs font-light tracking-widest uppercase text-foreground/30 mb-2">Social Reach</p>
-                <div className="flex gap-3">
-                  {socialLinks.map((social, index) => {
-                    const Icon = social.icon;
-                    return (
-                      <Button
-                        key={index}
-                        variant="outline"
-                        size="icon"
-                        className="w-12 h-12 rounded-2xl border-0 bg-primary/5 hover:bg-primary/15 text-foreground/40 hover:text-foreground/70 transition-all duration-500"
-                        asChild
-                      >
-                        <a href={social.link} target="_blank" rel="noopener noreferrer" aria-label={social.label}>
-                          <Icon className="w-5 h-5" />
-                        </a>
-                      </Button>
-                    );
-                  })}
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {/* Business Hours / Identity */}
-          <Card className="glass rounded-3xl border-0 p-10 bg-primary/5">
-            <CardContent className="p-0 space-y-8">
-              <div className="space-y-4">
-                <h3 className="text-xl font-heading font-light tracking-wider text-primary">Organizational Identity</h3>
-                <p className="text-sm font-light text-foreground/50 leading-loose italic">
-                  TECHSHASTRA is a student-led innovation ecosystem anchored by academic excellence.
-                  We respond to strategic inquiries within 48 business hours.
-                </p>
-              </div>
-
-              <div className="space-y-4 pt-4 border-t border-foreground/5">
-                <div className="flex justify-between items-center text-sm font-light">
-                  <span className="text-foreground/40 uppercase tracking-widest text-[10px]">Strategic Queries</span>
-                  <span className="text-foreground/70">President's Office</span>
-                </div>
-                <div className="flex justify-between items-center text-sm font-light">
-                  <span className="text-foreground/40 uppercase tracking-widest text-[10px]">Ops & Culture</span>
-                  <span className="text-foreground/70">VP's Office</span>
-                </div>
-                <div className="flex justify-between items-center text-sm font-light">
-                  <span className="text-foreground/40 uppercase tracking-widest text-[10px]">Innovation Lab</span>
-                  <span className="text-foreground/70">CTO Board</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </section>

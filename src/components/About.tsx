@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Target, Eye, Zap, Cpu, Sparkles } from "lucide-react";
 import logoFull from "@/assets/logo-full.png";
 
@@ -64,6 +65,19 @@ const About = () => {
                 <p className="text-2xl font-heading text-foreground">50+</p>
                 <p className="text-[10px] tracking-widest uppercase text-foreground/30">Deployments</p>
               </div>
+            </div>
+
+            <div className="pt-4">
+              <Button 
+                variant="outline" 
+                className="rounded-full px-8 glass border-primary/20 hover:bg-primary hover:text-primary-foreground group transition-all duration-500"
+                asChild
+              >
+                <a href="/about" className="flex items-center gap-2">
+                  Learn More About Us
+                  <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+                </a>
+              </Button>
             </div>
           </motion.div>
 

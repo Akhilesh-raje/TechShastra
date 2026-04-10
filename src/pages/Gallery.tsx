@@ -1,3 +1,10 @@
+/**
+ * Gallery Page
+ * 
+ * Displays a grid of images from club events and activities.
+ * Includes a full-screen image preview dialog.
+ * Data is fetched from the galleryStore.
+ */
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";

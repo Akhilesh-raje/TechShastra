@@ -491,6 +491,39 @@ export type Database = {
         }
         Relationships: []
       }
+      social_posts: {
+        Row: {
+          content: string | null
+          created_at: string
+          id: string
+          image_url: string | null
+          platform: string
+          post_url: string
+          posted_at: string
+          username: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          platform: string
+          post_url: string
+          posted_at?: string
+          username?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          platform?: string
+          post_url?: string
+          posted_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

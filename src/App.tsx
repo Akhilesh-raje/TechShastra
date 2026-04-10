@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import Index from "./pages/Index";
+import AboutPage from "./pages/AboutPage";
 import Join from "./pages/Join";
 import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
@@ -17,6 +18,7 @@ import Resources from "./pages/Resources";
 import Gallery from "./pages/Gallery";
 import FAQ from "./pages/FAQ";
 import Achievements from "./pages/Achievements";
+import Socials from "./pages/Socials";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import Publications from "./pages/Publications";
@@ -35,6 +37,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/about" element={<AboutPage />} />
             <Route path="/join" element={<Join />} />
             <Route path="/auth" element={<Auth />} />
 
@@ -52,6 +55,7 @@ const App = () => (
             <Route path="/gallery" element={<Gallery />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/achievements" element={<Achievements />} />
+            <Route path="/socials" element={<Socials />} />
             <Route path="/publications" element={<Publications />} />
             <Route path="/contact" element={<ContactPage />} />
 

@@ -1,18 +1,31 @@
+/**
+ * Admin Dashboard Page
+ * 
+ * The central management interface for TECHSHASTRA admins.
+ * This page allows managing:
+ * - Projects: Add/Remove technical projects
+ * - Blog: Create and publish articles
+ * - Events: Schedule club activities
+ * - Gallery: Upload campus and event photos
+ * - Research: Manage publications and books
+ * - Super Admin: System-wide visibility toggles and user management
+ * 
+ * It uses local state for form management and persists data via custom stores in src/lib/.
+ */
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LayoutDashboard, FileText, Calendar, Image, Trophy, HelpCircle, MessageSquare, Users, Plus, Trash2, Github, Globe, Terminal, Loader2, Award, Newspaper, Eye, EyeOff, Book, ShieldCheck, LogOut, Ban, UserCheck, UserX, ToggleLeft, ToggleRight, UserPlus, Phone, CalendarDays, Copy, Key, Mail, RotateCcw, ClipboardList, X } from "lucide-react";
+import { LayoutDashboard, FileText, Calendar, Image, Trophy, HelpCircle, MessageSquare, Users, Plus, Trash2, Github, Globe, Terminal, Loader2, Award, Newspaper, Eye, EyeOff, Book, ShieldCheck, LogOut, Ban, UserCheck, UserX, ToggleLeft, ToggleRight, UserPlus, Phone, CalendarDays, Copy, Key, Mail, RotateCcw, ClipboardList, X, Instagram, Linkedin, Twitter, Facebook, Link, Hash } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import { addProject, deleteProject, getAllProjects, getStoredProjects, Project, parseGitHubUrl } from "@/lib/projectStore";
-import { addBlogPost, deleteBlogPost, getAllBlogPosts, generateSlug, BlogPost, BlogCategory, updateBlogPost } from "@/lib/blogStore";
-import { addGalleryImage, deleteGalleryImage, getAllGalleryImages, GalleryImage } from "@/lib/galleryStore";
+import { parseGitHubUrl } from "@/lib/projectStore";
+import { generateSlug, BlogCategory } from "@/lib/blogStore";
 import { addPublication, deletePublication, getAllPublications, Publication, PublicationType } from "@/lib/publicationStore";
 import { getAdminUsers, removeAdminUser, blockUser, unblockUser, getPageVisibility, togglePageVisibility, createAdminCredential, getStoredCredentials, deleteAdminCredential, toggleAdminCredBlock, type AdminUser, type PageVisibility, type AdminRole } from "@/lib/adminStore";
 import { addLogEntry, clearLog, getLogEntries, revertEntry, saveCredentialsRaw, type LogEntry } from "@/lib/activityLogStore";
@@ -22,7 +35,9 @@ import { Badge } from "@/components/ui/badge";
 import CertificateSender from "@/components/CertificateSender";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
+import * as db from "@/lib/supabaseStore";
 
+// ── Shared Configuration ───────────────────────────────────────────────────
 const CATEGORY_LABELS: Record<BlogCategory, string> = {
   blog: "Blog",
   news: "News",
@@ -72,7 +87,7 @@ const Admin = ({ userRole }: AdminProps) => {
   );
 
   // ── Projects state ──────────────────────────────────────────────────────────
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<db.Project[]>([]);
   const [isFetching, setIsFetching] = useState(false);
   const [formData, setFormData] = useState<{
     title: string;
@@ -97,7 +112,7 @@ const Admin = ({ userRole }: AdminProps) => {
   });
 
   // ── Blog state ───────────────────────────────────────────────────────────────
-  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [blogPosts, setBlogPosts] = useState<db.BlogPost[]>([]);
   const [blogForm, setBlogForm] = useState<{
     title: string;
     slug: string;
@@ -120,7 +135,7 @@ const Admin = ({ userRole }: AdminProps) => {
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
   // ── Gallery state ────────────────────────────────────────────────────────────
-  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [galleryImages, setGalleryImages] = useState<db.GalleryImage[]>([]);
   const [galleryForm, setGalleryForm] = useState<{
     title: string;
     description: string;
@@ -149,6 +164,70 @@ const Admin = ({ userRole }: AdminProps) => {
     file_url: "",
   });
 
+  // ── Events state ─────────────────────────────────────────────────────────────
+  const [events, setEvents] = useState<db.Event[]>([]);
+  const [eventForm, setEventForm] = useState<{
+    title: string;
+    description: string;
+    date: string;
+    location: string;
+    image_url: string;
+    status: db.EventStatus;
+  }>({
+    title: "",
+    description: "",
+    date: format(new Date(), "yyyy-MM-dd"),
+    location: "Main Campus",
+    image_url: "",
+    status: "upcoming",
+  });
+
+  // ── Achievements state ───────────────────────────────────────────────────────
+  const [achievements, setAchievements] = useState<db.Achievement[]>([]);
+  const [achievementForm, setAchievementForm] = useState<{
+    title: string;
+    description: string;
+    date: string;
+    image_url: string;
+  }>({
+    title: "",
+    description: "",
+    date: format(new Date(), "yyyy-MM-dd"),
+    image_url: "",
+  });
+
+  // ── FAQ state ────────────────────────────────────────────────────────────────
+  const [faqs, setFaqs] = useState<db.FAQ[]>([]);
+  const [faqForm, setFaqForm] = useState<{
+    question: string;
+    answer: string;
+    category: string;
+  }>({
+    question: "",
+    answer: "",
+    category: "General",
+  });
+
+  // ── Socials state ───────────────────────────────────────────────────────────
+  const [socialPosts, setSocialPosts] = useState<db.SocialPost[]>([]);
+  const [socialForm, setSocialForm] = useState<{
+    platform: string;
+    post_url: string;
+    content: string;
+    image_url: string;
+    username: string;
+  }>({
+    platform: "instagram",
+    post_url: "",
+    content: "",
+    image_url: "",
+    username: "",
+  });
+  const [isFetchingSocial, setIsFetchingSocial] = useState(false);
+
+  // ── Messages state ──────────────────────────────────────────────────────────
+  const [messages, setMessages] = useState<db.ContactMessage[]>([]);
+
   // ── Super Admin state ─────────────────────────────────────────────────────────
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [pages, setPages] = useState<PageVisibility[]>([]);
@@ -167,14 +246,37 @@ const Admin = ({ userRole }: AdminProps) => {
 
   // ── Init ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    setProjects(getAllProjects());
-    setBlogPosts(getAllBlogPosts());
-    setGalleryImages(getAllGalleryImages());
     setPublications(getAllPublications());
+    loadSupabaseData();
     if (isSuperAdmin) {
       loadSuperAdminData();
     }
   }, []);
+
+  const loadSupabaseData = async () => {
+    try {
+      const [evts, achs, fqs, msgs, projs, posts, imgs, socials] = await Promise.all([
+        db.getEvents(),
+        db.getAchievements(),
+        db.getFAQs(),
+        db.getMessages(),
+        db.getProjects(),
+        db.getBlogPosts(),
+        db.getGalleryImages(),
+        db.getSocialPosts(),
+      ]);
+      setEvents(evts);
+      setAchievements(achs);
+      setFaqs(fqs);
+      setMessages(msgs);
+      setProjects(projs);
+      setBlogPosts(posts);
+      setGalleryImages(imgs);
+      setSocialPosts(socials);
+    } catch (err: any) {
+      console.error("Failed to load Supabase data", err);
+    }
+  };
 
   const loadSuperAdminData = async () => {
     setSuperAdminLoading(true);
@@ -341,7 +443,7 @@ const Admin = ({ userRole }: AdminProps) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.github) {
       toast({ title: "Missing GitHub URL", description: "Please provide a GitHub repository URL.", variant: "destructive" });
@@ -349,38 +451,44 @@ const Admin = ({ userRole }: AdminProps) => {
     }
     const gitInfo = parseGitHubUrl(formData.github);
     const finalTitle = formData.title || (gitInfo ? gitInfo.repo.replace(/-/g, " ").replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()) : "Untitled Project");
+
     try {
-      const newProj = addProject({
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const newProj = await db.addProject({
         title: finalTitle,
         description: formData.description || "A project by TECHSHASTRA member.",
-        github: formData.github,
-        image: formData.image || generateProjectImage(finalTitle, formData.description || "", formData.tags),
-        tags: formData.tags.split(",").map(t => t.trim()).filter(t => t),
-        team: { lead: formData.lead || "Anonymous", designer: formData.designer || "Anonymous" },
-        status: formData.status,
-        language: formData.language
+        github_url: formData.github,
+        image_url: formData.image || generateProjectImage(finalTitle, formData.description || "", formData.tags),
+        tech_stack: formData.tags.split(",").map(t => t.trim()).filter(t => t),
+        status: formData.status === "Completed" ? "completed" : "active",
+        created_by: session?.user.id || null,
+        featured: false
       });
-      setProjects(prev => [newProj, ...prev]);
+
+      setProjects(prev => [newProj as any, ...prev]);
       setFormData({ title: "", description: "", github: "", image: "", tags: "", lead: "", designer: "", status: "Completed", language: "javascript" });
-      toast({ title: "Project Added", description: `${newProj.title} has been added to the showcase.` });
+      toast({ title: "Project Added", description: `${newProj.title} has been added and saved to Supabase.` });
       trackAction(`Added project: ${newProj.title}`);
     } catch (err: any) {
       console.error("Submission failed", err);
       toast({
-        title: "Publication Failed",
-        description: err.name === "QuotaExceededError"
-          ? "Image size too large for local storage. Please use a smaller image or a URL."
-          : "An error occurred while saving the project.",
+        title: "Submission Failed",
+        description: "An error occurred while saving to the database. Check console for details.",
         variant: "destructive"
       });
     }
   };
 
-  const handleDelete = (id: string) => {
-    deleteProject(id);
-    setProjects(prev => prev.filter(p => p.id !== id));
-    toast({ title: "Project Deleted", description: "The project has been removed from the showcase." });
-    trackAction("Deleted a project");
+  const handleDelete = async (id: string) => {
+    try {
+      await db.deleteProject(id);
+      setProjects(prev => prev.filter(p => p.id !== id));
+      toast({ title: "Project Deleted", description: "The project has been removed from Supabase." });
+      trackAction("Deleted a project");
+    } catch (err: any) {
+      toast({ title: "Delete Failed", description: "Could not remove project from database.", variant: "destructive" });
+    }
   };
 
   // ── Blog helpers ─────────────────────────────────────────────────────────────
@@ -417,7 +525,7 @@ const Admin = ({ userRole }: AdminProps) => {
     }
   };
 
-  const handleBlogSubmit = (e: React.FormEvent) => {
+  const handleBlogSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!blogForm.title.trim()) {
       toast({ title: "Missing Title", description: "Please enter a post title.", variant: "destructive" });
@@ -432,46 +540,54 @@ const Admin = ({ userRole }: AdminProps) => {
       return;
     }
     try {
-      const img = document.createElement('img') as HTMLImageElement;
-      const now = new Date().toISOString();
-      const newPost = addBlogPost({
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const newPost = await db.addBlogPost({
         title: blogForm.title.trim(),
         slug: blogForm.slug || generateSlug(blogForm.title),
         excerpt: blogForm.excerpt.trim(),
         content: blogForm.content.trim(),
         image_url: blogForm.image_url,
-        category: blogForm.category,
-        author: blogForm.author.trim() || "TECHSHASTRA Team",
         published: blogForm.published,
-        published_at: now,
+        published_at: new Date().toISOString(),
+        author_id: session.user.id
       });
-      setBlogPosts(prev => [newPost, ...prev]);
+
+      setBlogPosts(prev => [newPost as any, ...prev]);
       setBlogForm({ title: "", slug: "", excerpt: "", content: "", image_url: "", category: "blog", author: "", published: true });
       setSlugManuallyEdited(false);
-      toast({ title: "✅ Post Published!", description: `"${newPost.title}" is now live on the Blog page.` });
+      toast({ title: "✅ Post Published!", description: `"${newPost.title}" is now live and saved in Supabase.` });
       trackAction(`Published blog: ${newPost.title}`);
     } catch (err: any) {
+      console.error("Blog submission failed", err);
       toast({
         title: "Publish Failed",
-        description: err.name === "QuotaExceededError"
-          ? "Storage full. Try using an image URL instead of uploading."
-          : "Could not save the post. Check console for details.",
+        description: "An error occurred while saving the post to Supabase.",
         variant: "destructive"
       });
     }
   };
 
-  const handleBlogDelete = (id: string) => {
-    deleteBlogPost(id);
-    setBlogPosts(prev => prev.filter(p => p.id !== id));
-    toast({ title: "Post Deleted", description: "The post has been removed." });
-    trackAction("Deleted a blog post");
+  const handleBlogDelete = async (id: string) => {
+    try {
+      await db.deleteBlogPost(id);
+      setBlogPosts(prev => prev.filter(p => p.id !== id));
+      toast({ title: "Post Deleted", description: "The post has been removed from Supabase." });
+      trackAction("Deleted a blog post");
+    } catch (err: any) {
+      toast({ title: "Delete Failed", description: "Could not remove post from database.", variant: "destructive" });
+    }
   };
 
-  const handleTogglePublish = (post: BlogPost) => {
-    updateBlogPost(post.id, { published: !post.published });
-    setBlogPosts(prev => prev.map(p => p.id === post.id ? { ...p, published: !p.published } : p));
-    toast({ title: post.published ? "Post Unpublished" : "Post Published", description: `"${post.title}" is now ${post.published ? "hidden" : "visible"} on the Blog page.` });
+  const handleTogglePublish = async (post: db.BlogPost) => {
+    try {
+      await db.updateBlogPost(post.id, { published: !post.published });
+      setBlogPosts(prev => prev.map(p => p.id === post.id ? { ...p, published: !post.published } : p));
+      toast({ title: post.published ? "Post Unpublished" : "Post Published", description: `"${post.title}" visibility updated in Supabase.` });
+    } catch (err: any) {
+      toast({ title: "Update Failed", description: "Could not update publish status.", variant: "destructive" });
+    }
   };
 
   // ── Gallery helpers ──────────────────────────────────────────────────────────
@@ -497,7 +613,7 @@ const Admin = ({ userRole }: AdminProps) => {
     }
   };
 
-  const handleGallerySubmit = (e: React.FormEvent) => {
+  const handleGallerySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!galleryForm.title.trim()) {
       toast({ title: "Missing Title", description: "Please enter an image title.", variant: "destructive" });
@@ -508,31 +624,38 @@ const Admin = ({ userRole }: AdminProps) => {
       return;
     }
     try {
-      const newImage = addGalleryImage({
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const newImage = await db.addGalleryImage({
         title: galleryForm.title.trim(),
         description: galleryForm.description.trim(),
         image_url: galleryForm.image_url,
+        uploaded_by: session?.user.id || null,
       });
-      setGalleryImages(prev => [newImage, ...prev]);
+
+      setGalleryImages(prev => [newImage as any, ...prev]);
       setGalleryForm({ title: "", description: "", image_url: "" });
-      toast({ title: "✅ Image Added!", description: "The image is now live in the Gallery." });
+      toast({ title: "✅ Image Added!", description: "The image is now live and saved in Supabase." });
       trackAction("Added gallery image");
     } catch (err: any) {
+      console.error("Gallery upload failed", err);
       toast({
         title: "Upload Failed",
-        description: err.name === "QuotaExceededError"
-          ? "Storage full. Try using an image URL instead of uploading."
-          : "Could not save the image.",
+        description: "An error occurred while saving the image to Supabase.",
         variant: "destructive"
       });
     }
   };
 
-  const handleGalleryDelete = (id: string) => {
-    deleteGalleryImage(id);
-    setGalleryImages(prev => prev.filter(img => img.id !== id));
-    toast({ title: "Image Deleted", description: "The image has been removed from the gallery." });
-    trackAction("Deleted gallery image");
+  const handleGalleryDelete = async (id: string) => {
+    try {
+      await db.deleteGalleryImage(id);
+      setGalleryImages(prev => prev.filter(img => img.id !== id));
+      toast({ title: "Image Deleted", description: "The image has been removed from Supabase." });
+      trackAction("Deleted gallery image");
+    } catch (err: any) {
+      toast({ title: "Delete Failed", description: "Could not remove image from database.", variant: "destructive" });
+    }
   };
 
   // ── Publications helpers ────────────────────────────────────────────────────
@@ -597,6 +720,199 @@ const Admin = ({ userRole }: AdminProps) => {
     trackAction("Deleted a publication");
   };
 
+  // ── Events handlers ──────────────────────────────────────────────────────────
+  const handleEventSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!eventForm.title.trim()) {
+      toast({ title: "Missing Title", description: "Event title is required.", variant: "destructive" });
+      return;
+    }
+    try {
+      const newEvent = await db.addEvent({
+        title: eventForm.title.trim(),
+        description: eventForm.description.trim(),
+        event_date: eventForm.date,
+        location: eventForm.location,
+        image_url: eventForm.image_url,
+        status: eventForm.status,
+      });
+      setEvents(prev => [newEvent, ...prev]);
+      setEventForm({ title: "", description: "", date: format(new Date(), "yyyy-MM-dd"), location: "Main Campus", image_url: "", status: "upcoming" });
+      toast({ title: "Event Added", description: `"${newEvent.title}" has been scheduled.` });
+      trackAction(`Added event: ${newEvent.title}`);
+    } catch (err: any) {
+      toast({ title: "Error", description: "Failed to add event.", variant: "destructive" });
+    }
+  };
+
+  const handleEventDelete = async (id: string) => {
+    try {
+      await db.deleteEvent(id);
+      setEvents(prev => prev.filter(e => e.id !== id));
+      toast({ title: "Event Deleted", description: "Event has been removed." });
+      trackAction("Deleted an event");
+    } catch (err: any) {
+      toast({ title: "Error", description: "Failed to delete event.", variant: "destructive" });
+    }
+  };
+
+  // ── Achievements handlers ────────────────────────────────────────────────────
+  const handleAchievementSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!achievementForm.title.trim()) {
+      toast({ title: "Missing Title", description: "Achievement title is required.", variant: "destructive" });
+      return;
+    }
+    try {
+      const newAchievement = await db.addAchievement({
+        title: achievementForm.title.trim(),
+        description: achievementForm.description.trim(),
+        date: achievementForm.date,
+        image_url: achievementForm.image_url,
+      });
+      setAchievements(prev => [newAchievement, ...prev]);
+      setAchievementForm({ title: "", description: "", date: format(new Date(), "yyyy-MM-dd"), image_url: "" });
+      toast({ title: "Achievement Added", description: `"${newAchievement.title}" added to the trophy case.` });
+      trackAction(`Added achievement: ${newAchievement.title}`);
+    } catch (err: any) {
+      toast({ title: "Error", description: "Failed to add achievement.", variant: "destructive" });
+    }
+  };
+
+  const handleAchievementDelete = async (id: string) => {
+    try {
+      await db.deleteAchievement(id);
+      setAchievements(prev => prev.filter(a => a.id !== id));
+      toast({ title: "Achievement Deleted", description: "Removed from trophy case." });
+      trackAction("Deleted an achievement");
+    } catch (err: any) {
+      toast({ title: "Error", description: "Failed to delete achievement.", variant: "destructive" });
+    }
+  };
+
+  // ── Socials handlers ─────────────────────────────────────────────────────────
+  const fetchSocialMetadata = async (url: string) => {
+    if (!url || !url.includes("http")) return;
+    setIsFetchingSocial(true);
+    try {
+      // Basic detection of platform
+      let platform = "instagram";
+      if (url.includes("linkedin.com")) platform = "linkedin";
+      if (url.includes("twitter.com") || url.includes("x.com")) platform = "twitter";
+      if (url.includes("facebook.com")) platform = "facebook";
+
+      // In a real app, we might call a serverless function here to scrape metadata.
+      // For now, we simulate by parsing the URL for a username and generating a placeholder image.
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split("/").filter(p => p);
+      const detectedUsername = pathParts[0] || "User";
+
+      setSocialForm(prev => ({
+        ...prev,
+        platform,
+        username: prev.username || detectedUsername,
+        content: prev.content || `New post on ${platform}`,
+        image_url: prev.image_url || `https://source.unsplash.com/featured/?${platform},tech`,
+      }));
+
+      toast({ title: "Link Detected", description: `Identified ${platform} post. Metadata auto-filled.` });
+    } catch (err) {
+      console.error("Failed to parse social URL", err);
+    } finally {
+      setIsFetchingSocial(false);
+    }
+  };
+
+  const handleSocialSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!socialForm.post_url.trim()) {
+      toast({ title: "Missing URL", description: "Social post URL is required.", variant: "destructive" });
+      return;
+    }
+    try {
+      const newPost = await db.addSocialPost({
+        platform: socialForm.platform,
+        post_url: socialForm.post_url.trim(),
+        content: socialForm.content.trim(),
+        image_url: socialForm.image_url,
+        username: socialForm.username.trim(),
+        posted_at: new Date().toISOString(),
+      });
+      setSocialPosts(prev => [newPost, ...prev]);
+      setSocialForm({ platform: "instagram", post_url: "", content: "", image_url: "", username: "" });
+      toast({ title: "Social Post Added", description: "The post is now live on the Socials page." });
+      trackAction(`Added social post: ${newPost.platform}`);
+    } catch (err: any) {
+      toast({ title: "Error", description: "Failed to add social post.", variant: "destructive" });
+    }
+  };
+
+  const handleSocialDelete = async (id: string) => {
+    try {
+      await db.deleteSocialPost(id);
+      setSocialPosts(prev => prev.filter(p => p.id !== id));
+      toast({ title: "Post Deleted", description: "Social post removed." });
+      trackAction("Deleted a social post");
+    } catch (err: any) {
+      toast({ title: "Error", description: "Failed to delete social post.", variant: "destructive" });
+    }
+  };
+
+  // ── FAQ handlers ─────────────────────────────────────────────────────────────
+  const handleFAQSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!faqForm.question.trim() || !faqForm.answer.trim()) {
+      toast({ title: "Missing Fields", description: "Question and Answer are required.", variant: "destructive" });
+      return;
+    }
+    try {
+      const newFAQ = await db.addFAQ({
+        question: faqForm.question.trim(),
+        answer: faqForm.answer.trim(),
+        category: faqForm.category.trim(),
+        order_index: faqs.length,
+      });
+      setFaqs(prev => [...prev, newFAQ]);
+      setFaqForm({ question: "", answer: "", category: "General" });
+      toast({ title: "FAQ Added", description: "Question added to FAQ list." });
+      trackAction("Added FAQ entry");
+    } catch (err: any) {
+      toast({ title: "Error", description: "Failed to add FAQ.", variant: "destructive" });
+    }
+  };
+
+  const handleFAQDelete = async (id: string) => {
+    try {
+      await db.deleteFAQ(id);
+      setFaqs(prev => prev.filter(f => f.id !== id));
+      toast({ title: "FAQ Deleted", description: "Entry removed." });
+      trackAction("Deleted FAQ entry");
+    } catch (err: any) {
+      toast({ title: "Error", description: "Failed to delete FAQ.", variant: "destructive" });
+    }
+  };
+
+  // ── Messages handlers ────────────────────────────────────────────────────────
+  const handleMessageDelete = async (id: string) => {
+    try {
+      await db.deleteMessage(id);
+      setMessages(prev => prev.filter(m => m.id !== id));
+      toast({ title: "Message Deleted", description: "Message removed from inbox." });
+      trackAction("Deleted a message");
+    } catch (err: any) {
+      toast({ title: "Error", description: "Failed to delete message.", variant: "destructive" });
+    }
+  };
+
+  const handleMarkAsRead = async (id: string, read: boolean) => {
+    try {
+      await db.markMessageRead(id, read);
+      setMessages(prev => prev.map(m => m.id === id ? { ...m, read } : m));
+    } catch (err: any) {
+      console.error("Failed to update message status", err);
+    }
+  };
+
   const publishedBlogCount = blogPosts.filter(p => p.published).length;
 
   const handleSignOut = () => {
@@ -632,8 +948,9 @@ const Admin = ({ userRole }: AdminProps) => {
             <TabsTrigger value="events"><Calendar className="w-4 h-4 mr-2 hidden sm:inline" />Events</TabsTrigger>
             <TabsTrigger value="blog"><Newspaper className="w-4 h-4 mr-2 hidden sm:inline" />Blog</TabsTrigger>
             <TabsTrigger value="gallery"><Image className="w-4 h-4 mr-2 hidden sm:inline" />Gallery</TabsTrigger>
+            <TabsTrigger value="socials"><Hash className="w-4 h-4 mr-2 hidden sm:inline" />Socials</TabsTrigger>
             <TabsTrigger value="publications"><Book className="w-4 h-4 mr-2 hidden sm:inline" />Research</TabsTrigger>
-            <TabsTrigger value="achievements"><Trophy className="w-4 h-4 mr-2 hidden sm:inline" />Awards</TabsTrigger>
+            <TabsTrigger value="awards"><Trophy className="w-4 h-4 mr-2 hidden sm:inline" />Awards</TabsTrigger>
             <TabsTrigger value="faq"><HelpCircle className="w-4 h-4 mr-2 hidden sm:inline" />FAQ</TabsTrigger>
             <TabsTrigger value="messages"><MessageSquare className="w-4 h-4 mr-2 hidden sm:inline" />Messages</TabsTrigger>
             <TabsTrigger value="certificates"><Award className="w-4 h-4 mr-2 hidden sm:inline" />Certs</TabsTrigger>
@@ -838,22 +1155,138 @@ const Admin = ({ userRole }: AdminProps) => {
                         <div key={project.id} className="flex items-center justify-between p-4 border rounded-xl hover:bg-primary/5 transition-colors">
                           <div className="flex items-center gap-4 flex-1">
                             <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                              {project.language === 'python' ? <Terminal className="w-6 h-6 text-primary" /> : project.language === 'javascript' ? <Globe className="w-6 h-6 text-primary" /> : <FileText className="w-6 h-6 text-muted-foreground" />}
+                              {project.github_url?.includes("python") ? <Terminal className="w-6 h-6 text-primary" /> : <Globe className="w-6 h-6 text-primary" />}
                             </div>
                             <div className="flex-1">
                               <h4 className="font-medium">{project.title}</h4>
-                              <p className="text-xs text-muted-foreground truncate max-w-[300px]">{project.github}</p>
+                              <p className="text-xs text-muted-foreground truncate max-w-[300px]">{project.github_url}</p>
                               <div className="flex gap-2 mt-1">
-                                <Badge variant={project.language === 'other' ? 'secondary' : 'default'} className="text-[9px] px-2 py-0">
-                                  {project.language === 'javascript' ? 'JS/React' : project.language === 'python' ? 'Python' : 'Other'}
+                                <Badge variant="default" className="text-[9px] px-2 py-0">
+                                  {project.tech_stack?.[0] || 'Project'}
                                 </Badge>
                                 <Badge variant="outline" className="text-[9px] px-2 py-0 text-green-600 border-green-600">
-                                  Live Runnable
+                                  Supabase Persistent
                                 </Badge>
                               </div>
                             </div>
                           </div>
                           <Button variant="ghost" size="icon" onClick={() => handleDelete(project.id)} className="text-destructive hover:bg-destructive/10">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* ── Events ── */}
+          <TabsContent value="events">
+            <div className="grid lg:grid-cols-5 gap-6">
+              <Card className="lg:col-span-2 h-fit">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-primary" />
+                    Schedule New Event
+                  </CardTitle>
+                  <CardDescription>Add workshops, hackathons or seminars.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleEventSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="event-title">Event Title *</Label>
+                      <Input
+                        id="event-title"
+                        placeholder="e.g. AI Bootcamp 2025"
+                        value={eventForm.title}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, title: e.target.value }))}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="event-date">Date</Label>
+                        <Input
+                          id="event-date"
+                          type="date"
+                          value={eventForm.date}
+                          onChange={(e) => setEventForm(prev => ({ ...prev, date: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="event-status">Status</Label>
+                        <Select value={eventForm.status} onValueChange={(v) => setEventForm(prev => ({ ...prev, status: v as db.EventStatus }))}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="upcoming">Upcoming</SelectItem>
+                            <SelectItem value="ongoing">Ongoing</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="event-location">Location</Label>
+                      <Input
+                        id="event-location"
+                        placeholder="e.g. Seminar Hall A"
+                        value={eventForm.location}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, location: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="event-description">Short Description</Label>
+                      <Textarea
+                        id="event-description"
+                        placeholder="Brief summary of the event..."
+                        rows={3}
+                        value={eventForm.description}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, description: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="event-image">Image URL</Label>
+                      <Input
+                        id="event-image"
+                        placeholder="https://..."
+                        value={eventForm.image_url}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, image_url: e.target.value }))}
+                      />
+                    </div>
+                    <Button type="submit" className="w-full">Create Event</Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-3">
+                <CardHeader>
+                  <CardTitle>Upcoming & Past Events</CardTitle>
+                  <CardDescription>Manage your club's activity calendar.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {events.length === 0 ? (
+                      <div className="text-center py-12 border border-dashed rounded-xl">
+                        <p className="text-muted-foreground italic">No events found in Supabase.</p>
+                      </div>
+                    ) : (
+                      events.map((event) => (
+                        <div key={event.id} className="flex items-center justify-between p-4 border rounded-xl hover:bg-muted/30 transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <Calendar className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-sm">{event.title}</h4>
+                              <p className="text-xs text-muted-foreground">{format(new Date(event.event_date), "MMM d, yyyy")} • {event.location}</p>
+                              <Badge variant="outline" className="text-[9px] mt-1 h-4">
+                                {event.status.toUpperCase()}
+                              </Badge>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="icon" onClick={() => handleEventDelete(event.id)} className="text-destructive">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -1045,13 +1478,13 @@ const Admin = ({ userRole }: AdminProps) => {
                               />
                             ) : (
                               <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                {post.category === "news" ? <Newspaper className="w-6 h-6 text-primary" /> : <FileText className="w-6 h-6 text-primary" />}
+                                <FileText className="w-6 h-6 text-primary" />
                               </div>
                             )}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap mb-1">
-                                <Badge variant={CATEGORY_COLORS[post.category] as any} className="text-[9px] px-2 py-0">
-                                  {CATEGORY_LABELS[post.category]}
+                                <Badge variant="secondary" className="text-[9px] px-2 py-0">
+                                  Post
                                 </Badge>
                                 {!post.published && (
                                   <Badge variant="outline" className="text-[9px] px-2 py-0 text-amber-600 border-amber-600">
@@ -1067,7 +1500,7 @@ const Admin = ({ userRole }: AdminProps) => {
                               <h4 className="font-medium text-sm leading-tight truncate">{post.title}</h4>
                               <p className="text-xs text-muted-foreground truncate mt-0.5">{post.excerpt}</p>
                               <p className="text-[10px] text-muted-foreground mt-1">
-                                By {post.author} · {format(new Date(post.published_at), "MMM d, yyyy")}
+                                {post.published_at ? format(new Date(post.published_at), "MMM d, yyyy") : "Draft"} · Supabase
                               </p>
                             </div>
                           </div>
@@ -1364,8 +1797,379 @@ const Admin = ({ userRole }: AdminProps) => {
             </div>
           </TabsContent>
 
+          {/* ── Awards / Achievements ── */}
+          <TabsContent value="awards">
+            <div className="grid lg:grid-cols-5 gap-6">
+              <Card className="lg:col-span-2 h-fit">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-primary" />
+                    New Achievement
+                  </CardTitle>
+                  <CardDescription>Add a new milestone to the club's trophy case.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleAchievementSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="ach-title">Title *</Label>
+                      <Input
+                        id="ach-title"
+                        placeholder="e.g. Winner of Smart India Hackathon"
+                        value={achievementForm.title}
+                        onChange={(e) => setAchievementForm(prev => ({ ...prev, title: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ach-date">Date *</Label>
+                      <Input
+                        id="ach-date"
+                        type="date"
+                        value={achievementForm.date}
+                        onChange={(e) => setAchievementForm(prev => ({ ...prev, date: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ach-description">Brief Description</Label>
+                      <Textarea
+                        id="ach-description"
+                        placeholder="What was achieved..."
+                        rows={4}
+                        value={achievementForm.description}
+                        onChange={(e) => setAchievementForm(prev => ({ ...prev, description: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ach-image">Image URL (Optional)</Label>
+                      <Input
+                        id="ach-image"
+                        placeholder="https://..."
+                        value={achievementForm.image_url}
+                        onChange={(e) => setAchievementForm(prev => ({ ...prev, image_url: e.target.value }))}
+                      />
+                    </div>
+                    <Button type="submit" className="w-full">🏆 Add Achievement</Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-3">
+                <CardHeader>
+                  <CardTitle>Trophy Case</CardTitle>
+                  <CardDescription>Managing {achievements.length} accomplishments.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {achievements.length === 0 ? (
+                      <div className="text-center py-12 border border-dashed rounded-xl">
+                        <p className="text-muted-foreground italic">No achievements recorded in Supabase.</p>
+                      </div>
+                    ) : (
+                      achievements.map((ach) => (
+                        <div key={ach.id} className="flex gap-4 p-4 border rounded-xl hover:bg-muted/30 transition-colors">
+                          <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <Trophy className="w-6 h-6 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-semibold text-sm truncate">{ach.title}</h4>
+                              <Button variant="ghost" size="icon" onClick={() => handleAchievementDelete(ach.id)} className="text-destructive h-8 w-8">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mb-2">{format(new Date(ach.date), "MMMM d, yyyy")}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-2">{ach.description}</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* ── FAQ ── */}
+          <TabsContent value="faq">
+            <div className="grid lg:grid-cols-5 gap-6">
+              <Card className="lg:col-span-2 h-fit">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-primary" />
+                    Add FAQ Item
+                  </CardTitle>
+                  <CardDescription>Answer common questions from members.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleFAQSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="faq-cat">Category</Label>
+                      <Input
+                        id="faq-cat"
+                        placeholder="e.g. General, Members, Technical"
+                        value={faqForm.category}
+                        onChange={(e) => setFaqForm(prev => ({ ...prev, category: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="faq-q">Question *</Label>
+                      <Input
+                        id="faq-q"
+                        placeholder="The question..."
+                        value={faqForm.question}
+                        onChange={(e) => setFaqForm(prev => ({ ...prev, question: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="faq-a">Answer *</Label>
+                      <Textarea
+                        id="faq-a"
+                        placeholder="The detailed answer..."
+                        rows={6}
+                        value={faqForm.answer}
+                        onChange={(e) => setFaqForm(prev => ({ ...prev, answer: e.target.value }))}
+                      />
+                    </div>
+                    <Button type="submit" className="w-full">➕ Add to FAQ</Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-3">
+                <CardHeader>
+                  <CardTitle>FAQ List</CardTitle>
+                  <CardDescription>Showing {faqs.length} entries.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {faqs.length === 0 ? (
+                      <div className="text-center py-12 border border-dashed rounded-xl">
+                        <p className="text-muted-foreground italic">No FAQs found.</p>
+                      </div>
+                    ) : (
+                      faqs.map((faq) => (
+                        <div key={faq.id} className="p-4 border rounded-xl hover:bg-muted/30 transition-colors">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <Badge variant="secondary" className="text-[9px] mb-2 uppercase">{faq.category || "General"}</Badge>
+                              <h4 className="font-semibold text-sm leading-tight">{faq.question}</h4>
+                              <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{faq.answer}</p>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => handleFAQDelete(faq.id)} className="text-destructive h-8 w-8 ml-2">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* ── Messages / Inbox ── */}
+          <TabsContent value="messages">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="w-5 h-5 text-primary" />
+                    Contact Inbox
+                  </CardTitle>
+                  <CardDescription>Messages received via the contact form.</CardDescription>
+                </div>
+                <Badge variant="outline" className="h-6">
+                  {messages.filter(m => !m.read).length} Unread
+                </Badge>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {messages.length === 0 ? (
+                    <div className="text-center py-24 border border-dashed rounded-2xl">
+                      <Mail className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-20" />
+                      <p className="text-muted-foreground italic">Your inbox is empty.</p>
+                    </div>
+                  ) : (
+                    messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`p-5 rounded-2xl border transition-all ${msg.read ? "bg-background border-border hover:border-primary/30" : "bg-primary/5 border-primary/20 shadow-sm"}`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex gap-4">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${msg.read ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground"}`}>
+                              {msg.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className={`text-sm ${msg.read ? "font-medium" : "font-bold"}`}>{msg.name}</h4>
+                                <span className="text-[10px] text-muted-foreground">·</span>
+                                <span className="text-[10px] text-muted-foreground">{format(new Date(msg.created_at), "MMM d, h:mm a")}</span>
+                              </div>
+                              <p className="text-xs font-semibold mb-1">{msg.subject}</p>
+                              <p className="text-xs text-muted-foreground leading-relaxed italic border-l-2 pl-3 border-primary/20 my-2">"{msg.message}"</p>
+                              <div className="flex items-center gap-4 mt-3">
+                                <a href={`mailto:${msg.email}`} className="text-[10px] font-medium text-primary hover:underline flex items-center gap-1">
+                                  <Mail className="w-3 h-3" /> {msg.email}
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleMarkAsRead(msg.id, !msg.read)}
+                              className="text-[10px] h-8"
+                            >
+                              {msg.read ? "Mark Unread" : "Mark Read"}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleMessageDelete(msg.id)}
+                              className="text-destructive h-8 w-8 hover:bg-destructive/10"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="certificates">
             <CertificateSender />
+          </TabsContent>
+
+          {/* ── Socials ── */}
+          <TabsContent value="socials">
+            <div className="grid lg:grid-cols-5 gap-6">
+              <Card className="lg:col-span-2 h-fit border-primary/20 bg-primary/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Plus className="w-5 h-5 text-primary" />
+                    Add Social Post
+                  </CardTitle>
+                  <CardDescription>Share recent updates from Instagram, LinkedIn, or Twitter.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSocialSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="social-url">Post URL</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="social-url"
+                          placeholder="https://instagram.com/p/..."
+                          value={socialForm.post_url}
+                          onChange={(e) => {
+                            setSocialForm(prev => ({ ...prev, post_url: e.target.value }));
+                            if (e.target.value.length > 20) fetchSocialMetadata(e.target.value);
+                          }}
+                        />
+                        {isFetchingSocial && <Loader2 className="w-4 h-4 animate-spin self-center" />}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Platform</Label>
+                        <Select value={socialForm.platform} onValueChange={(v) => setSocialForm(prev => ({ ...prev, platform: v }))}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="instagram">Instagram</SelectItem>
+                            <SelectItem value="linkedin">LinkedIn</SelectItem>
+                            <SelectItem value="twitter">Twitter / X</SelectItem>
+                            <SelectItem value="facebook">Facebook</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Username</Label>
+                        <Input
+                          placeholder="@techshastra"
+                          value={socialForm.username}
+                          onChange={(e) => setSocialForm(prev => ({ ...prev, username: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Caption / Content</Label>
+                      <Textarea
+                        placeholder="What's this post about?"
+                        value={socialForm.content}
+                        onChange={(e) => setSocialForm(prev => ({ ...prev, content: e.target.value }))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Preview Image URL</Label>
+                      <Input
+                        placeholder="Image URL"
+                        value={socialForm.image_url}
+                        onChange={(e) => setSocialForm(prev => ({ ...prev, image_url: e.target.value }))}
+                      />
+                    </div>
+
+                    <Button type="submit" className="w-full">Sync to Socials Page</Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-3">
+                <CardHeader>
+                  <CardTitle>Social Feed Management</CardTitle>
+                  <CardDescription>Managing {socialPosts.length} posts currently shown on the site.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {socialPosts.length === 0 ? (
+                      <div className="text-center py-12 border border-dashed rounded-xl">
+                        <p className="text-muted-foreground italic">No social posts added yet.</p>
+                      </div>
+                    ) : (
+                      socialPosts.map((post) => (
+                        <div key={post.id} className="flex items-center justify-between p-4 border rounded-xl hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-4 flex-1">
+                            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center overflow-hidden">
+                              {post.image_url ? (
+                                <img src={post.image_url} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <Link className="w-6 h-6 text-primary" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium truncate">{post.username}</span>
+                                <Badge variant="outline" className="text-[10px] capitalize">
+                                  {post.platform}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate">{post.content}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 ml-4">
+                            <a href={post.post_url} target="_blank" rel="noopener noreferrer">
+                              <Button variant="ghost" size="icon">
+                                <Globe className="w-4 h-4" />
+                              </Button>
+                            </a>
+                            <Button variant="ghost" size="icon" onClick={() => handleSocialDelete(post.id)} className="text-destructive hover:bg-destructive/10">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* ── Super Admin Panel ── */}
@@ -1898,14 +2702,14 @@ const Admin = ({ userRole }: AdminProps) => {
                           <div
                             key={entry.id}
                             className={`flex items-start justify-between gap-3 p-3 rounded-lg border text-xs ${entry.type === "create_credential"
-                                ? "border-green-500/20 bg-green-500/5"
-                                : entry.type === "delete_credential"
-                                  ? "border-destructive/20 bg-destructive/5"
-                                  : entry.type === "block_credential"
-                                    ? "border-orange-500/20 bg-orange-500/5"
-                                    : entry.type === "unblock_credential"
-                                      ? "border-blue-500/20 bg-blue-500/5"
-                                      : "border-border bg-muted/20"
+                              ? "border-green-500/20 bg-green-500/5"
+                              : entry.type === "delete_credential"
+                                ? "border-destructive/20 bg-destructive/5"
+                                : entry.type === "block_credential"
+                                  ? "border-orange-500/20 bg-orange-500/5"
+                                  : entry.type === "unblock_credential"
+                                    ? "border-blue-500/20 bg-blue-500/5"
+                                    : "border-border bg-muted/20"
                               }`}
                           >
                             <div className="flex gap-2.5 flex-1 min-w-0">

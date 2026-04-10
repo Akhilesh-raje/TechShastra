@@ -1,20 +1,26 @@
+/** 
+ * Represents the team members associated with a project.
+ */
 export interface Team {
-    lead: string;
-    designer: string;
+    lead: string;    // Name of the project lead
+    designer: string; // Name of the UI/UX designer
 }
 
+/**
+ * Represents a project entry in the TECHSHASTRA showcase.
+ */
 export interface Project {
-    id: string;
-    title: string;
-    description: string;
-    image?: string;
-    tags: string[];
-    team: Team;
-    github: string;
-    demo?: string;
-    status: "Completed" | "In Progress";
-    language: "javascript" | "python" | "other";
-    createdAt: number;
+    id: string;          // Unique identifier for the project
+    title: string;       // Public title of the project
+    description: string; // Brief summary of the project goals
+    image?: string;      // Optional URL for the project thumbnail
+    tags: string[];      // Array of technologies or domains (e.g., IoT, AI)
+    team: Team;          // Lead and designer info
+    github: string;      // Link to the source code repository
+    demo?: string;       // Optional link to a live demonstration
+    status: "Completed" | "In Progress"; // Current development stage
+    language: "javascript" | "python" | "other"; // Primary execution environment
+    createdAt: number;   // Timestamp of project creation
 }
 
 const STORAGE_KEY = "techshastra_projects";
@@ -27,7 +33,12 @@ const generateId = () => {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 };
 
+/**
+ * DEMO DATA: Hardcoded projects used for initial demonstration.
+ * Feel free to remove or replace these in your final application.
+ */
 export const hardcodedProjects: Project[] = [
+    /*
     {
         id: "smart-campus",
         title: "Smart Campus System",
@@ -64,6 +75,7 @@ export const hardcodedProjects: Project[] = [
         language: "other",
         createdAt: 0
     }
+    */
 ];
 
 export const getStoredProjects = (): Project[] => {
@@ -71,8 +83,13 @@ export const getStoredProjects = (): Project[] => {
     return stored ? JSON.parse(stored) : [];
 };
 
+/**
+ * Retrieves all projects, including locally stored ones and demo data.
+ * @returns Array of projects
+ */
 export const getAllProjects = (): Project[] => {
     const stored = getStoredProjects();
+    // In production, you might want to remove hardcodedProjects
     return [...stored, ...hardcodedProjects];
 };
 

@@ -1,3 +1,10 @@
+/**
+ * Publications Page
+ * 
+ * Showcases research papers, books, and other academic works by TECHSHASTRA members.
+ * Includes a search functionality to filter publications by title, author, or description.
+ * Data is fetched from the publicationStore.
+ */
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";

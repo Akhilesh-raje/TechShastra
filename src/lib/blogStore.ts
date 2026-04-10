@@ -1,22 +1,30 @@
 export type BlogCategory = "blog" | "news" | "announcement";
 
+/**
+ * Represents a blog post entry in the TECHSHASTRA blog.
+ */
 export interface BlogPost {
-    id: string;
-    title: string;
-    slug: string;
-    excerpt: string;
-    content: string;
-    image_url: string;
-    category: BlogCategory;
-    author: string;
-    published: boolean;
-    published_at: string; // ISO string
-    created_at: number;   // timestamp for sorting
+    id: string;          // Unique identifier for the post
+    title: string;       // Public title of the blog post
+    slug: string;        // URL-friendly identifier (e.g., tech-summit-2026)
+    excerpt: string;     // Short summary for post cards
+    content: string;     // Full markdown content of the post
+    image_url: string;   // Featured image URL
+    category: BlogCategory; // Category of the post (blog, news, announcement)
+    author: string;      // Name of the author
+    published: boolean;  // Whether the post is visible to the public
+    published_at: string; // ISO string timestamp of publication
+    created_at: number;   // Unix timestamp for sorting
 }
 
 const STORAGE_KEY = "techshastra_blog_posts";
 
+/**
+ * DEMO DATA: Hardcoded blog posts used for initial demonstration.
+ * Feel free to remove or replace these in your final application.
+ */
 export const samplePosts: BlogPost[] = [
+    /*
     {
         id: "sample-1",
         title: "TECHSHASTRA Annual Tech Summit 2026",
@@ -56,6 +64,7 @@ export const samplePosts: BlogPost[] = [
         published_at: "2026-02-10T09:00:00Z",
         created_at: 1739200000000,
     }
+    */
 ];
 
 // Fallback for crypto.randomUUID() in non-secure contexts or older browsers
@@ -81,9 +90,13 @@ export const getStoredBlogPosts = (): BlogPost[] => {
     return stored ? JSON.parse(stored) : [];
 };
 
-/** Returns all posts sorted newest first */
+/** 
+ * Returns all blog posts, including locally stored ones and demo data.
+ * @returns Array of blog posts sorted newest first
+ */
 export const getAllBlogPosts = (): BlogPost[] => {
     const stored = getStoredBlogPosts();
+    // In production, you might want to remove samplePosts
     return [...stored, ...samplePosts].sort((a, b) => b.created_at - a.created_at);
 };
 

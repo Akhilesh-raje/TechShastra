@@ -1,5 +1,11 @@
+/**
+ * Projects Page
+ * 
+ * Displays a grid of all technical projects from the TECHSHASTRA community.
+ * Fetches data from the projectStore and supports live demo links.
+ */
 import { useState, useEffect } from "react";
-import { getAllProjects, Project } from "@/lib/projectStore";
+import { db, type Project } from "@/lib/supabaseStore";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,11 +13,24 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Github, Play, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
+
 const Projects = () => {
+  // State for storing the list of projects fetched from Supabase
   const [allProjects, setAllProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setAllProjects(getAllProjects());
+    const fetchProjects = async () => {
+      try {
+        const data = await db.getAllProjects();
+        setAllProjects(data);
+      } catch (err) {
+        console.error("Failed to fetch projects:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProjects();
   }, []);
 
   return (
@@ -31,86 +50,95 @@ const Projects = () => {
           </div>
 
           {/* Projects Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {allProjects.map((project) => (
-              <Card
-                key={project.id}
-                className="glass border-0 hover:scale-[1.02] transition-all duration-500 group rounded-3xl overflow-hidden"
-              >
-                {/* Project Image */}
-                <div className="relative h-56 overflow-hidden">
-                  <img
-                    src={project.image || `https://og.tailgraph.com/og?fontFamily=Inter&title=${encodeURIComponent(project.title)}&bgColor=0f172a&titleColor=a855f7&logoText=TECHSHASTRA`}
-                    alt={project.title}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.onerror = null;
-                      target.src = `https://placehold.co/800x450/0f172a/a855f7?text=${encodeURIComponent(project.title)}`;
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent"></div>
+          {loading ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-[500px] rounded-3xl bg-muted animate-pulse" />
+              ))}
+            </div>
+          ) : allProjects.length === 0 ? (
+            <div className="text-center py-24 glass rounded-[3rem]">
+              <p className="text-muted-foreground italic">No projects found in our digital archives.</p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {allProjects.map((project) => (
+                <Card
+                  key={project.id}
+                  className="glass border-0 hover:scale-[1.02] transition-all duration-500 group rounded-3xl overflow-hidden"
+                >
+                  {/* Project Image */}
+                  <div className="relative h-56 overflow-hidden">
+                    <img
+                      src={project.image_url || `https://og.tailgraph.com/og?fontFamily=Inter&title=${encodeURIComponent(project.title)}&bgColor=0f172a&titleColor=a855f7&logoText=TECHSHASTRA`}
+                      alt={project.title}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null;
+                        target.src = `https://placehold.co/800x450/0f172a/a855f7?text=${encodeURIComponent(project.title)}`;
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent"></div>
 
-                  <div className="absolute top-4 right-4 flex gap-2">
-                    <Badge className="bg-primary/20 backdrop-blur-md text-primary-foreground border-0 text-[10px] uppercase tracking-widest px-3 py-1">
-                      {project.status}
-                    </Badge>
-                    <Badge className="bg-accent/40 backdrop-blur-md text-foreground border-0 text-[10px] uppercase tracking-widest px-3 py-1">
-                      Live Embed
-                    </Badge>
-                  </div>
-                </div>
-
-                <CardContent className="p-8 space-y-6">
-                  <h3 className="text-xl font-heading font-light tracking-wide">{project.title}</h3>
-                  <p className="text-sm font-light text-foreground/50 line-clamp-2 italic">
-                    {project.description}
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-4 py-4 border-y border-foreground/5">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-foreground/30 mb-1">Lead Dev</p>
-                      <p className="text-xs font-light text-foreground/70">{project.team.lead}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-foreground/30 mb-1">UI Designer</p>
-                      <p className="text-xs font-light text-foreground/70">{project.team.designer}</p>
+                    <div className="absolute top-4 right-4 flex gap-2">
+                      <Badge className="bg-primary/20 backdrop-blur-md text-primary-foreground border-0 text-[10px] uppercase tracking-widest px-3 py-1">
+                        {project.status}
+                      </Badge>
                     </div>
                   </div>
 
-                  {/* Tags */}
-                  <div className="flex flex-wrap gap-2">
-                    {project.tags.slice(0, 3).map((tag, idx) => (
-                      <span key={idx} className="text-[10px] uppercase tracking-widest text-foreground/40 font-light px-2 py-1 bg-primary/5 rounded-md">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+                  <CardContent className="p-8 space-y-6">
+                    <h3 className="text-xl font-heading font-light tracking-wide">{project.title}</h3>
+                    <p className="text-sm font-light text-foreground/50 line-clamp-2 italic">
+                      {project.description}
+                    </p>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-3 pt-2">
-                    <Button
-                      variant="outline"
-                      className="flex-1 glass border-0 rounded-full h-12 hover:bg-primary/5 transition-all duration-300"
-                      asChild
-                    >
-                      <a href={project.github} target="_blank" rel="noopener noreferrer">
-                        <Github className="w-4 h-4 mr-2" />
-                        <span className="text-[10px] uppercase tracking-widest">Code</span>
-                      </a>
-                    </Button>
+                    <div className="grid grid-cols-2 gap-4 py-4 border-y border-foreground/5">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-foreground/30 mb-1">Status</p>
+                        <p className="text-xs font-light text-foreground/70 uppercase">{project.status}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-foreground/30 mb-1">Persistent</p>
+                        <p className="text-xs font-light text-primary/70">Supabase DB</p>
+                      </div>
+                    </div>
 
-                    <Link to={`/projects/${project.id}/live`} className="flex-1">
-                      <Button className="w-full bg-primary text-primary-foreground rounded-full h-12 shadow-lg hover:shadow-primary/20 transition-all duration-500">
-                        <Play className="w-4 h-4 mr-2" />
-                        <span className="text-[10px] uppercase tracking-widest">Run Live</span>
+                    {/* Tech Stack */}
+                    <div className="flex flex-wrap gap-2">
+                      {project.tech_stack?.slice(0, 3).map((tag, idx) => (
+                        <span key={idx} className="text-[10px] uppercase tracking-widest text-foreground/40 font-light px-2 py-1 bg-primary/5 rounded-md">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 pt-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1 glass border-0 rounded-full h-12 hover:bg-primary/5 transition-all duration-300"
+                        asChild
+                      >
+                        <a href={project.github_url || "#"} target="_blank" rel="noopener noreferrer">
+                          <Github className="w-4 h-4 mr-2" />
+                          <span className="text-[10px] uppercase tracking-widest">Code</span>
+                        </a>
                       </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+
+                      <Link to={`/projects/${project.id}/live`} className="flex-1">
+                        <Button className="w-full bg-primary text-primary-foreground rounded-full h-12 shadow-lg hover:shadow-primary/20 transition-all duration-500">
+                          <Play className="w-4 h-4 mr-2" />
+                          <span className="text-[10px] uppercase tracking-widest">Details</span>
+                        </Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
 
           {/* CTA */}
           <div className="mt-24 text-center">
