@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { motion, AnimatePresence } from "framer-motion";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -15,6 +16,15 @@ const Navbar = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Lock scroll when mobile menu is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+  }, [isMobileMenuOpen]);
 
   const navLinks = [
     { label: "Home", href: "/" },
@@ -38,7 +48,7 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-3 group">
+          <Link to="/" className="flex items-center space-x-3 group" onClick={() => setIsMobileMenuOpen(false)}>
             <img src="/favicon.ico" alt="TECHSHASTRA Logo" className="w-8 h-8 object-contain group-hover:scale-110 transition-transform duration-300" />
             <span className="font-heading text-lg tracking-[0.15em] font-light text-foreground group-hover:text-primary transition-colors">
               TECHSHASTRA
@@ -85,7 +95,7 @@ const Navbar = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="text-foreground/70"
+              className="text-foreground/70 z-50 relative"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               {isMobileMenuOpen ? <X /> : <Menu />}
@@ -93,42 +103,66 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden py-6 space-y-4 mt-4 border-t border-border">
-            {navLinks.map((link) => (
-              link.href.startsWith('#') ? (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  className="block text-sm font-light tracking-wider text-foreground/70 hover:text-foreground transition-colors"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setIsMobileMenuOpen(false);
-                    const element = document.querySelector(link.href);
-                    element?.scrollIntoView({ behavior: 'smooth' });
-                  }}
+        {/* Mobile Menu Overlay */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, x: "100%" }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-0 bg-background/95 backdrop-blur-xl z-40 flex flex-col items-center justify-center p-6 md:hidden"
+            >
+              <div className="flex flex-col items-center space-y-6 w-full max-w-sm">
+                {navLinks.map((link, idx) => (
+                  <motion.div
+                    key={link.label}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 + idx * 0.05 }}
+                    className="w-full text-center"
+                  >
+                    {link.href.startsWith('#') ? (
+                      <a
+                        href={link.href}
+                        className="block text-2xl font-heading font-light tracking-widest text-foreground/70 hover:text-primary transition-colors py-2"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setIsMobileMenuOpen(false);
+                          const element = document.querySelector(link.href);
+                          element?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                      >
+                        {link.label}
+                      </a>
+                    ) : (
+                      <Link
+                        to={link.href}
+                        className="block text-2xl font-heading font-light tracking-widest text-foreground/70 hover:text-primary transition-colors py-2"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        {link.label}
+                      </Link>
+                    )}
+                  </motion.div>
+                ))}
+                
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 + navLinks.length * 0.05 }}
+                  className="w-full pt-6"
                 >
-                  {link.label}
-                </a>
-              ) : (
-                <Link
-                  key={link.label}
-                  to={link.href}
-                  className="block text-sm font-light tracking-wider text-foreground/70 hover:text-foreground transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {link.label}
-                </Link>
-              )
-            ))}
-            <Link to="/join" onClick={() => setIsMobileMenuOpen(false)}>
-              <Button size="sm" className="w-full rounded-full font-light tracking-wider bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-primary-foreground">
-                Join Now
-              </Button>
-            </Link>
-          </div>
-        )}
+                  <Link to="/join" onClick={() => setIsMobileMenuOpen(false)}>
+                    <Button size="lg" className="w-full rounded-full font-light tracking-widest bg-primary text-primary-foreground shadow-xl shadow-primary/20">
+                      Join Now
+                    </Button>
+                  </Link>
+                </motion.div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </nav>
   );

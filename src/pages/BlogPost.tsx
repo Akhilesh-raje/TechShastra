@@ -32,9 +32,9 @@ const BlogPost = () => {
 
   useEffect(() => {
     if (slug) {
-      // Look up from localStorage store
+      // Only surface published posts to the public
       const found = getBlogPostBySlug(slug);
-      setPost(found ?? null);
+      setPost(found?.published ? found : null);
       setLoading(false);
     }
   }, [slug]);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getFAQs, type FAQ } from "@/lib/stores/faqStore";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import {
@@ -27,15 +27,14 @@ const FAQ = () => {
   }, []);
 
   const fetchFAQs = async () => {
-    const { data, error } = await supabase
-      .from("faqs")
-      .select("*")
-      .order("order_index", { ascending: true });
-
-    if (!error && data) {
+    try {
+      const data = await getFAQs();
       setFaqs(data);
+    } catch (error) {
+      console.error("Error fetching FAQs:", error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const categories = faqs.reduce((acc, faq) => {

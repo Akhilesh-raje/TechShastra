@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Trophy, Medal, Award, Instagram, Linkedin, Twitter, Facebook, ExternalLink, Hash, Filter } from "lucide-react";
 import { format } from "date-fns";
-import { db } from "@/lib/supabaseStore";
-import type { SocialPost, Achievement } from "@/lib/supabaseStore";
+import { getSocialPosts, type SocialPost } from "@/lib/stores/socialStore";
+import { getAchievements, type Achievement } from "@/lib/stores/achievementStore";
 
 type FeedItem =
   | { type: "social"; data: SocialPost }
@@ -27,8 +27,8 @@ const Socials = () => {
     setLoading(true);
     try {
       const [socials, achievements] = await Promise.all([
-        db.getSocialPosts(),
-        db.getAchievements(),
+        getSocialPosts(),
+        getAchievements()
       ]);
 
       const combined: FeedItem[] = [
@@ -87,27 +87,27 @@ const Socials = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <Navbar />
 
-      <main className="container mx-auto px-4 py-24">
+      <main className="container mx-auto px-4 py-16 sm:py-24">
         {/* Hero Section */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-10 sm:mb-16">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <Badge variant="outline" className="mb-4 px-4 py-1 border-primary/30 text-primary bg-primary/5">
+            <Badge variant="outline" className="mb-4 px-4 py-1 border-primary/30 text-primary bg-primary/5 text-[10px] sm:text-xs">
               Updates & Milestones
             </Badge>
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-primary via-purple-500 to-blue-500 bg-clip-text text-transparent">
+            <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-primary via-purple-500 to-blue-500 bg-clip-text text-transparent leading-tight">
               Socials & Impact
             </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base sm:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
               Follow our journey, celebrate our wins, and stay connected with the TECHSHASTRA community.
             </p>
           </motion.div>
 
           {/* Filter Bar */}
-          <div className="flex flex-wrap justify-center gap-3 mt-10">
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mt-8 sm:mt-10">
             {[
               { id: "all", label: "All Feed", icon: Filter },
               { id: "achievements", label: "Achievements", icon: Trophy },
@@ -118,9 +118,9 @@ const Socials = () => {
                 key={f.id}
                 variant={filter === f.id ? "default" : "outline"}
                 onClick={() => setFilter(f.id)}
-                className="rounded-full px-6 gap-2 transition-all duration-300"
+                className="rounded-full px-4 sm:px-6 h-9 sm:h-10 gap-2 transition-all duration-300 text-xs sm:text-sm"
               >
-                <f.icon className="w-4 h-4" />
+                <f.icon className="w-3 h-3 sm:w-4 sm:h-4" />
                 {f.label}
               </Button>
             ))}
@@ -128,21 +128,21 @@ const Socials = () => {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-96 bg-muted animate-pulse rounded-3xl" />
+              <div key={i} className="h-80 sm:h-96 bg-muted animate-pulse rounded-3xl" />
             ))}
           </div>
         ) : filteredItems.length === 0 ? (
           <div className="text-center py-24">
-            <p className="text-2xl text-muted-foreground">No posts found in this category.</p>
+            <p className="text-xl sm:text-2xl text-muted-foreground">No posts found.</p>
           </div>
         ) : (
           <motion.div
             variants={container}
             initial="hidden"
             animate="show"
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 p-4"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto"
           >
             <AnimatePresence mode="popLayout">
               {filteredItems.map((item) => (

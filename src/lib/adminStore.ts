@@ -1,341 +1,214 @@
-import { supabase } from "@/integrations/supabase/client";
-
 // ─── TYPES ───────────────────────────────────────────────────────────
 export type AdminRole = "super_admin" | "admin";
 
-export interface AdminUser {
-    user_id: string;
-    role: AdminRole;
-    email?: string;
-    full_name?: string;
-    is_blocked: boolean;
-    blocked_at?: string;
-    block_reason?: string;
+export interface AdminCredential {
+  id: string;
+  name: string;
+  mobile: string;
+  dob: string;
+  email?: string;
+  role: AdminRole;
+  is_blocked: boolean;
+  blocked_at?: string;
+  block_reason?: string;
+  created_at: string;
 }
 
 export interface PageVisibility {
-    id: string;
-    page_path: string;
-    page_name: string;
-    is_visible: boolean;
-    updated_at: string;
+  id: string;
+  page_path: string;
+  page_name: string;
+  is_visible: boolean;
+  updated_at: string;
 }
 
-// ─── ROLE CHECKS ─────────────────────────────────────────────────────
+// ─── HARDCODED SUPER ADMIN ──────────────────────────────────────────
+// Change these credentials before deployment
+const SUPER_ADMIN = {
+  name: "Super Admin",
+  mobile: "1234567890",
+  dob: "2000-01-01",
+};
 
-/** Get the current user's admin role (super_admin | admin | null) */
+// Generate credential key: name + mobile + dob
+const generateCredKey = (name: string, mobile: string, dob: string): string => {
+  return `${name.toLowerCase().trim()}${mobile}${dob}`;
+};
+
+const SUPER_ADMIN_KEY = generateCredKey(SUPER_ADMIN.name, SUPER_ADMIN.mobile, SUPER_ADMIN.dob);
+
+// ─── STORAGE HELPERS ─────────────────────────────────────────────────
+const STORAGE_KEY = "ts_admin_credentials";
+
+const getCredentials = (): AdminCredential[] => {
+  const data = localStorage.getItem(STORAGE_KEY);
+  return data ? JSON.parse(data) : [];
+};
+
+export const getStoredCredentials = getCredentials;
+
+const saveCredentials = (creds: AdminCredential[]): void => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(creds));
+};
+
+// ─── AUTH ────────────────────────────────────────────────────────────
+
+/** Verify login credentials */
+export const verifyAdmin = (name: string, mobile: string, dob: string): { success: boolean; role?: AdminRole; id?: string } => {
+  const key = generateCredKey(name, mobile, dob);
+  
+  // Check super admin
+  if (key === SUPER_ADMIN_KEY) {
+    return { success: true, role: "super_admin", id: "super_admin" };
+  }
+  
+  // Check regular admins
+  const creds = getCredentials();
+  const admin = creds.find(c => generateCredKey(c.name, c.mobile, c.dob) === key);
+  
+  if (admin && !admin.is_blocked) {
+    return { success: true, role: admin.role, id: admin.id };
+  }
+  
+  return { success: false };
+};
+
+/** Get user role by ID */
 export const getUserRole = async (userId: string): Promise<AdminRole | null> => {
-    const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .in("role", ["super_admin", "admin"])
-        .maybeSingle();
-
-    if (!data) return null;
-    return data.role as AdminRole;
+  if (userId === "super_admin") return "super_admin";
+  
+  const creds = getCredentials();
+  const admin = creds.find(c => c.id === userId);
+  return admin ? admin.role : null;
 };
 
 /** Check if user is blocked */
 export const isUserBlocked = async (userId: string): Promise<boolean> => {
-    const { data } = await supabase
-        .from("admin_blocklist")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-    return !!data;
+  if (userId === "super_admin") return false;
+  
+  const creds = getCredentials();
+  const admin = creds.find(c => c.id === userId);
+  return admin ? admin.is_blocked : false;
 };
 
 // ─── USER MANAGEMENT (Super Admin Only) ──────────────────────────────
 
-/** Get all admin users with their block status */
-export const getAdminUsers = async (): Promise<AdminUser[]> => {
-    // Get all users with admin/super_admin roles
-    const { data: roles, error } = await supabase
-        .from("user_roles")
-        .select("user_id, role")
-        .in("role", ["super_admin", "admin"]);
-
-    if (error || !roles) return [];
-
-    // Get block status for each
-    const { data: blocklist } = await supabase
-        .from("admin_blocklist")
-        .select("user_id, blocked_at, reason");
-
-    const blockMap = new Map(
-        (blocklist || []).map((b: { user_id: string; blocked_at: string; reason: string | null }) => [
-            b.user_id,
-            { blocked_at: b.blocked_at, reason: b.reason },
-        ])
-    );
-
-    // Get profiles for names/emails
-    const userIds = roles.map((r: { user_id: string }) => r.user_id);
-    const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", userIds);
-
-    const profileMap = new Map(
-        (profiles || []).map((p: { id: string; full_name: string | null }) => [p.id, p.full_name])
-    );
-
-    return roles.map((r: { user_id: string; role: string }) => {
-        const block = blockMap.get(r.user_id);
-        return {
-            user_id: r.user_id,
-            role: r.role as AdminRole,
-            full_name: profileMap.get(r.user_id) || undefined,
-            is_blocked: !!block,
-            blocked_at: block?.blocked_at,
-            block_reason: block?.reason || undefined,
-        };
-    });
+/** Get all admin users */
+export const getAdminUsers = async (): Promise<AdminCredential[]> => {
+  return getCredentials();
 };
 
-/** Add a user as admin by their email */
-export const addAdminByEmail = async (
-    email: string
-): Promise<{ success: boolean; error?: string }> => {
-    // Search for user in profiles table instead of auth.admin
-    // Note: requires 'email' column to exist in profiles
-    const { data: profile, error: searchError } = await (supabase
-        .from("profiles") as any)
-        .select("id")
-        .eq("email", email)
-        .maybeSingle();
-
-    if (searchError) {
-        return { success: false, error: "Error searching for user" };
-    }
-
-    if (!profile) {
-        return { success: false, error: `No account found for ${email}. User must sign up first.` };
-    }
-
-    // Check if they already have a role
-    const { data: existing } = await supabase
-        .from("user_roles")
-        .select("id")
-        .eq("user_id", profile.id)
-        .maybeSingle();
-
-    if (existing) {
-        return { success: false, error: "User already has an admin role" };
-    }
-
-    const { error } = await supabase
-        .from("user_roles")
-        .insert({ user_id: profile.id, role: "admin" });
-
-    if (error) return { success: false, error: error.message };
-    return { success: true };
-};
-
-/** Remove admin role from a user */
-export const removeAdminUser = async (userId: string): Promise<void> => {
-    await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
-    // Also remove from blocklist if present
-    await supabase.from("admin_blocklist").delete().eq("user_id", userId);
-};
-
-/** Block an admin user */
-export const blockUser = async (
-    userId: string,
-    blockedBy: string,
-    reason?: string
-): Promise<void> => {
-    await supabase.from("admin_blocklist").upsert({
-        user_id: userId,
-        blocked_by: blockedBy,
-        reason: reason || null,
-    });
-};
-
-/** Unblock an admin user */
-export const unblockUser = async (userId: string): Promise<void> => {
-    await supabase.from("admin_blocklist").delete().eq("user_id", userId);
-};
-
-// ─── PAGE VISIBILITY (Super Admin Only) ──────────────────────────────
-
-/** Get visibility status for all pages */
-export const getPageVisibility = async (): Promise<PageVisibility[]> => {
-    const { data, error } = await supabase
-        .from("page_visibility")
-        .select("*")
-        .order("page_name");
-
-    if (error || !data) return [];
-    return data as PageVisibility[];
-};
-
-/** Toggle a page's visibility */
-export const togglePageVisibility = async (
-    pageId: string,
-    isVisible: boolean,
-    userId: string
-): Promise<void> => {
-    await supabase
-        .from("page_visibility")
-        .update({
-            is_visible: isVisible,
-            hidden_by: isVisible ? null : userId,
-            updated_at: new Date().toISOString(),
-        })
-        .eq("id", pageId);
-};
-
-/** Get list of hidden page paths (for route filtering) */
-export const getHiddenPages = async (): Promise<string[]> => {
-    const { data } = await supabase
-        .from("page_visibility")
-        .select("page_path")
-        .eq("is_visible", false);
-
-    return (data || []).map((d: { page_path: string }) => d.page_path);
-};
-
-// ─── CUSTOM CREDENTIAL SYSTEM ────────────────────────────────────────
-
-const ADMIN_CREDS_KEY = "ts_admin_credentials";
-
-/** Hardcoded Super Admin credentials */
-const SUPER_ADMIN_CREDS = {
-    username: "techshastra@AK",
-    password: "7817030426@AK",
-};
-
-/** Stored admin credential */
-export interface AdminCredential {
-    id: string;
-    name: string;
-    mobile: string;
-    dob: string; // YYYY-MM-DD
-    email: string;
-    username: string;
-    password: string;
-    created_at: string;
-    is_blocked: boolean;
-}
-
-/**
- * Generate unique credentials from name, mobile, DOB.
- * Username: first3chars_of_name + last4_of_mobile + "@ts"
- * Password: DOB(ddmm) + first2chars_of_name + mid4_of_mobile + "!"
- */
-export const generateCredentials = (
-    name: string,
-    mobile: string,
-    dob: string
-): { username: string; password: string } => {
-    const cleanName = name.trim().toLowerCase().replace(/\s+/g, "");
-    const cleanMobile = mobile.replace(/\D/g, "");
-    const dobParts = dob.split("-"); // YYYY-MM-DD
-
-    // Username: first3 of name + last4 of mobile + @ts
-    const namePrefix = cleanName.slice(0, 3);
-    const mobileSuffix = cleanMobile.slice(-4);
-    const username = `${namePrefix}${mobileSuffix}@ts`;
-
-    // Password: dd + mm + first2uppercase + mid4ofmobile + !
-    const dd = dobParts[2] || "01";
-    const mm = dobParts[1] || "01";
-    const nameUpper = name.trim().slice(0, 2).toUpperCase();
-    const mobileMid = cleanMobile.slice(3, 7);
-    const password = `${dd}${mm}${nameUpper}${mobileMid}!`;
-
-    return { username, password };
-};
-
-/** Get all stored admin credentials */
-export const getStoredCredentials = (): AdminCredential[] => {
-    try {
-        const raw = localStorage.getItem(ADMIN_CREDS_KEY);
-        return raw ? JSON.parse(raw) : [];
-    } catch (_e) {
-        return [];
-    }
-};
-
-/** Save credentials to localStorage */
-const saveCredentials = (creds: AdminCredential[]) => {
-    localStorage.setItem(ADMIN_CREDS_KEY, JSON.stringify(creds));
-};
-
-/** Create a new admin with generated credentials */
+/** Create new admin credential */
 export const createAdminCredential = (
-    name: string,
-    mobile: string,
-    dob: string,
-    email: string = ""
+  name: string,
+  mobile: string,
+  dob: string,
+  role: AdminRole = "admin",
+  email?: string
 ): AdminCredential => {
-    const { username, password } = generateCredentials(name, mobile, dob);
-    const newCred: AdminCredential = {
-        id: `adm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        name: name.trim(),
-        mobile: mobile.trim(),
-        dob,
-        email: email.trim().toLowerCase(),
-        username,
-        password,
-        created_at: new Date().toISOString(),
-        is_blocked: false,
-    };
-
-    const existing = getStoredCredentials();
-    // Check for duplicate username
-    if (existing.some((c) => c.username === username)) {
-        throw new Error(`Credential already exists for similar name/mobile combo`);
-    }
-    saveCredentials([...existing, newCred]);
-    return newCred;
+  const creds = getCredentials();
+  
+  const newCred: AdminCredential = {
+    id: Date.now().toString(),
+    name,
+    mobile,
+    dob,
+    email,
+    role,
+    is_blocked: false,
+    created_at: new Date().toISOString(),
+  };
+  
+  creds.push(newCred);
+  saveCredentials(creds);
+  
+  return newCred;
 };
 
-/** Delete an admin credential */
-export const deleteAdminCredential = (id: string) => {
-    const creds = getStoredCredentials().filter((c) => c.id !== id);
+/** Block an admin */
+export const blockAdmin = (userId: string, reason?: string): void => {
+  const creds = getCredentials();
+  const index = creds.findIndex(c => c.id === userId);
+  
+  if (index !== -1) {
+    creds[index].is_blocked = true;
+    creds[index].blocked_at = new Date().toISOString();
+    creds[index].block_reason = reason;
     saveCredentials(creds);
+  }
 };
 
-/** Block/unblock an admin credential */
-export const toggleAdminCredBlock = (id: string, blocked: boolean) => {
-    const creds = getStoredCredentials().map((c) =>
-        c.id === id ? { ...c, is_blocked: blocked } : c
-    );
+/** Unblock an admin */
+export const unblockAdmin = (userId: string): void => {
+  const creds = getCredentials();
+  const index = creds.findIndex(c => c.id === userId);
+  
+  if (index !== -1) {
+    creds[index].is_blocked = false;
+    creds[index].blocked_at = undefined;
+    creds[index].block_reason = undefined;
     saveCredentials(creds);
+  }
 };
 
-/**
- * Authenticate against custom credentials.
- * Returns: { role: "super_admin" | "admin" | null, name: string | null, blocked: boolean }
- */
-export const authenticateCustom = (
-    username: string,
-    password: string
-): { role: AdminRole | null; name: string | null; blocked: boolean } => {
-    // 1. Check Super Admin hardcoded creds
-    if (
-        username === SUPER_ADMIN_CREDS.username &&
-        password === SUPER_ADMIN_CREDS.password
-    ) {
-        return { role: "super_admin", name: "Akhilesh Raje", blocked: false };
-    }
-
-    // 2. Check stored admin credentials
-    const creds = getStoredCredentials();
-    const match = creds.find(
-        (c) => c.username === username && c.password === password
-    );
-
-    if (match) {
-        if (match.is_blocked) {
-            return { role: null, name: match.name, blocked: true };
-        }
-        return { role: "admin", name: match.name, blocked: false };
-    }
-
-    return { role: null, name: null, blocked: false };
+/** Delete admin credential */
+export const deleteAdminCredential = (userId: string): void => {
+  const creds = getCredentials();
+  const filtered = creds.filter(c => c.id !== userId);
+  saveCredentials(filtered);
 };
+
+// ─── PAGE VISIBILITY ─────────────────────────────────────────────────
+
+const PAGE_VISIBILITY_KEY = "ts_page_visibility";
+
+const getPageVisibility = (): PageVisibility[] => {
+  const data = localStorage.getItem(PAGE_VISIBILITY_KEY);
+  return data ? JSON.parse(data) : [];
+};
+
+export const getStoredPageVisibility = getPageVisibility;
+
+const savePageVisibility = (pages: PageVisibility[]): void => {
+  localStorage.setItem(PAGE_VISIBILITY_KEY, JSON.stringify(pages));
+};
+
+/** Get all page visibility settings */
+export const getAllPageVisibility = async (): Promise<PageVisibility[]> => {
+  return getPageVisibility();
+};
+
+/** Toggle page visibility */
+export const togglePageVisibility = async (pageId: string): Promise<void> => {
+  const pages = getPageVisibility();
+  const index = pages.findIndex(p => p.id === pageId);
+  
+  if (index !== -1) {
+    pages[index].is_visible = !pages[index].is_visible;
+    pages[index].updated_at = new Date().toISOString();
+    savePageVisibility(pages);
+  }
+};
+
+/** Initialize default pages if not exists */
+export const initializePages = (): void => {
+  const existing = getPageVisibility();
+  if (existing.length > 0) return;
+  
+  const defaultPages: PageVisibility[] = [
+    { id: "1", page_path: "/projects", page_name: "Projects", is_visible: true, updated_at: new Date().toISOString() },
+    { id: "2", page_path: "/events", page_name: "Events", is_visible: true, updated_at: new Date().toISOString() },
+    { id: "3", page_path: "/blog", page_name: "Blog", is_visible: true, updated_at: new Date().toISOString() },
+    { id: "4", page_path: "/gallery", page_name: "Gallery", is_visible: true, updated_at: new Date().toISOString() },
+    { id: "5", page_path: "/achievements", page_name: "Achievements", is_visible: true, updated_at: new Date().toISOString() },
+    { id: "6", page_path: "/publications", page_name: "Publications", is_visible: true, updated_at: new Date().toISOString() },
+    { id: "7", page_path: "/resources", page_name: "Resources", is_visible: true, updated_at: new Date().toISOString() },
+    { id: "8", page_path: "/faq", page_name: "FAQ", is_visible: true, updated_at: new Date().toISOString() },
+    { id: "9", page_path: "/socials", page_name: "Socials", is_visible: true, updated_at: new Date().toISOString() },
+  ];
+  
+  savePageVisibility(defaultPages);
+};
+
+// Initialize on module load
+initializePages();

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { getEventById } from "@/lib/stores/eventStore";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -32,89 +32,34 @@ const EventDetail = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    checkUser();
     if (id) {
       fetchEvent();
     }
   }, [id]);
 
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUser(user);
-  };
-
   const fetchEvent = async () => {
-    const { data, error } = await supabase
-      .from("events")
-      .select(`
-        *,
-        event_registrations (id, user_id)
-      `)
-      .eq("id", id)
-      .single();
-
-    if (!error && data) {
-      setEvent(data as any);
-      if (user) {
-        const registered = data.event_registrations.some(
-          (reg: any) => reg.user_id === user.id
-        );
-        setIsRegistered(registered);
-      }
+    if (!id) {
+      setLoading(false);
+      return;
     }
+    
+    const eventData = await getEventById(id);
+    setEvent(eventData as any);
     setLoading(false);
   };
 
   const handleRegister = async () => {
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to register for events.",
-      });
-      return;
-    }
-
-    const { error } = await supabase
-      .from("event_registrations")
-      .insert([{ event_id: id, user_id: user.id }]);
-
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to register for event.",
-      });
-    } else {
-      toast({
-        title: "Success!",
-        description: "You've been registered for this event.",
-      });
-      setIsRegistered(true);
-      fetchEvent();
-    }
+    toast({
+      title: "Registration Note",
+      description: "Event registration system requires backend. Contact admin for registration.",
+    });
   };
 
   const handleUnregister = async () => {
-    const { error } = await supabase
-      .from("event_registrations")
-      .delete()
-      .eq("event_id", id)
-      .eq("user_id", user.id);
-
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to unregister from event.",
-      });
-    } else {
-      toast({
-        title: "Unregistered",
-        description: "You've been removed from this event.",
-      });
-      setIsRegistered(false);
-      fetchEvent();
-    }
+    toast({
+      title: "Unregistration Note",
+      description: "Event registration system requires backend. Contact admin for unregistration.",
+    });
   };
 
   return (
@@ -156,7 +101,7 @@ const EventDetail = () => {
                 <div className="flex items-center gap-2">
                   <Users className="w-5 h-5" />
                   <span>
-                    {event.event_registrations.length}
+                    {(event.event_registrations ?? []).length}
                     {event.max_attendees && ` / ${event.max_attendees}`} registered
                   </span>
                 </div>

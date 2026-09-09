@@ -27,15 +27,29 @@ import { useToast } from "@/components/ui/use-toast";
 import { parseGitHubUrl } from "@/lib/projectStore";
 import { generateSlug, BlogCategory } from "@/lib/blogStore";
 import { addPublication, deletePublication, getAllPublications, Publication, PublicationType } from "@/lib/publicationStore";
-import { getAdminUsers, removeAdminUser, blockUser, unblockUser, getPageVisibility, togglePageVisibility, createAdminCredential, getStoredCredentials, deleteAdminCredential, toggleAdminCredBlock, type AdminUser, type PageVisibility, type AdminRole } from "@/lib/adminStore";
+import { getAdminUsers, blockAdmin, unblockAdmin, getAllPageVisibility, togglePageVisibility, createAdminCredential, getStoredCredentials, deleteAdminCredential, type AdminCredential, type PageVisibility, type AdminRole } from "@/lib/adminStore";
 import { addLogEntry, clearLog, getLogEntries, revertEntry, saveCredentialsRaw, type LogEntry } from "@/lib/activityLogStore";
 import { useAdminPresence } from "@/hooks/use-admin-presence";
-import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import CertificateSender from "@/components/CertificateSender";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
-import * as db from "@/lib/supabaseStore";
+import { exportAllData, importAllData, clearAllData, getStorageSize } from "@/lib/dataBackup";
+// New localStorage-based stores
+import * as eventStore from "@/lib/stores/eventStore";
+import * as achievementStore from "@/lib/stores/achievementStore";
+import * as faqStore from "@/lib/stores/faqStore";
+import * as messageStore from "@/lib/stores/messageStore";
+import * as socialStore from "@/lib/stores/socialStore";
+import type { Event, EventStatus } from "@/lib/stores/eventStore";
+import type { Achievement } from "@/lib/stores/achievementStore";
+import type { FAQ } from "@/lib/stores/faqStore";
+import type { ContactMessage } from "@/lib/stores/messageStore";
+import type { SocialPost } from "@/lib/stores/socialStore";
+// Existing localStorage stores
+import { getAllProjects, addProject as addProjectLocal, deleteProject as deleteProjectLocal, type Project } from "@/lib/projectStore";
+import { getAllBlogPosts, addBlogPost as addBlogLocal, deleteBlogPost as deleteBlogLocal, updateBlogPost as updateBlogLocal, type BlogPost } from "@/lib/blogStore";
+import { getAllGalleryImages, addGalleryImage as addGalleryLocal, deleteGalleryImage as deleteGalleryLocal, type GalleryImage } from "@/lib/galleryStore";
 
 // ── Shared Configuration ───────────────────────────────────────────────────
 const CATEGORY_LABELS: Record<BlogCategory, string> = {
@@ -62,32 +76,29 @@ const Admin = ({ userRole }: AdminProps) => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState("Admin");
 
-  // Get current user info on mount
+  // Get current user info on mount - using sessionStorage from custom auth
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setCurrentUserId(session.user.id);
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", session.user.id)
-          .maybeSingle();
-        setCurrentUserName(profile?.full_name || session.user.email?.split("@")[0] || "Admin");
+    const raw = sessionStorage.getItem("ts_admin_session");
+    if (raw) {
+      try {
+        const session = JSON.parse(raw);
+        setCurrentUserId(session.role); // Use role as ID for presence
+        setCurrentUserName(session.name || "Admin");
+      } catch (_e) {
+        setCurrentUserName("Admin");
       }
-    };
-    getUser();
+    }
   }, []);
 
   // Presence tracking (only active when Super Admin or for all admins to broadcast)
-  const { onlineAdmins, activityLog, trackAction } = useAdminPresence(
+  const { onlineAdmins, activityLog, broadcastAction: trackAction } = useAdminPresence(
     currentUserId,
     currentUserName,
     activeTab
   );
 
   // ── Projects state ──────────────────────────────────────────────────────────
-  const [projects, setProjects] = useState<db.Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [isFetching, setIsFetching] = useState(false);
   const [formData, setFormData] = useState<{
     title: string;
@@ -112,7 +123,7 @@ const Admin = ({ userRole }: AdminProps) => {
   });
 
   // ── Blog state ───────────────────────────────────────────────────────────────
-  const [blogPosts, setBlogPosts] = useState<db.BlogPost[]>([]);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [blogForm, setBlogForm] = useState<{
     title: string;
     slug: string;
@@ -135,7 +146,7 @@ const Admin = ({ userRole }: AdminProps) => {
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
   // ── Gallery state ────────────────────────────────────────────────────────────
-  const [galleryImages, setGalleryImages] = useState<db.GalleryImage[]>([]);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [galleryForm, setGalleryForm] = useState<{
     title: string;
     description: string;
@@ -165,14 +176,14 @@ const Admin = ({ userRole }: AdminProps) => {
   });
 
   // ── Events state ─────────────────────────────────────────────────────────────
-  const [events, setEvents] = useState<db.Event[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [eventForm, setEventForm] = useState<{
     title: string;
     description: string;
     date: string;
     location: string;
     image_url: string;
-    status: db.EventStatus;
+    status: EventStatus;
   }>({
     title: "",
     description: "",
@@ -183,7 +194,7 @@ const Admin = ({ userRole }: AdminProps) => {
   });
 
   // ── Achievements state ───────────────────────────────────────────────────────
-  const [achievements, setAchievements] = useState<db.Achievement[]>([]);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [achievementForm, setAchievementForm] = useState<{
     title: string;
     description: string;
@@ -197,7 +208,7 @@ const Admin = ({ userRole }: AdminProps) => {
   });
 
   // ── FAQ state ────────────────────────────────────────────────────────────────
-  const [faqs, setFaqs] = useState<db.FAQ[]>([]);
+  const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [faqForm, setFaqForm] = useState<{
     question: string;
     answer: string;
@@ -209,7 +220,7 @@ const Admin = ({ userRole }: AdminProps) => {
   });
 
   // ── Socials state ───────────────────────────────────────────────────────────
-  const [socialPosts, setSocialPosts] = useState<db.SocialPost[]>([]);
+  const [socialPosts, setSocialPosts] = useState<SocialPost[]>([]);
   const [socialForm, setSocialForm] = useState<{
     platform: string;
     post_url: string;
@@ -226,10 +237,10 @@ const Admin = ({ userRole }: AdminProps) => {
   const [isFetchingSocial, setIsFetchingSocial] = useState(false);
 
   // ── Messages state ──────────────────────────────────────────────────────────
-  const [messages, setMessages] = useState<db.ContactMessage[]>([]);
+  const [messages, setMessages] = useState<ContactMessage[]>([]);
 
   // ── Super Admin state ─────────────────────────────────────────────────────────
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [adminUsers, setAdminUsers] = useState<AdminCredential[]>([]);
   const [pages, setPages] = useState<PageVisibility[]>([]);
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [blockReason, setBlockReason] = useState("");
@@ -256,14 +267,14 @@ const Admin = ({ userRole }: AdminProps) => {
   const loadSupabaseData = async () => {
     try {
       const [evts, achs, fqs, msgs, projs, posts, imgs, socials] = await Promise.all([
-        db.getEvents(),
-        db.getAchievements(),
-        db.getFAQs(),
-        db.getMessages(),
-        db.getProjects(),
-        db.getBlogPosts(),
-        db.getGalleryImages(),
-        db.getSocialPosts(),
+        eventStore.getEvents(),
+        achievementStore.getAchievements(),
+        faqStore.getFAQs(),
+        messageStore.getMessages(),
+        Promise.resolve(getAllProjects()),
+        Promise.resolve(getAllBlogPosts()),
+        Promise.resolve(getAllGalleryImages()),
+        socialStore.getSocialPosts(),
       ]);
       setEvents(evts);
       setAchievements(achs);
@@ -274,7 +285,7 @@ const Admin = ({ userRole }: AdminProps) => {
       setGalleryImages(imgs);
       setSocialPosts(socials);
     } catch (err: any) {
-      console.error("Failed to load Supabase data", err);
+      console.error("Failed to load data", err);
     }
   };
 
@@ -282,7 +293,7 @@ const Admin = ({ userRole }: AdminProps) => {
     setSuperAdminLoading(true);
     const [users, pageData] = await Promise.all([
       getAdminUsers(),
-      getPageVisibility(),
+      getAllPageVisibility(),
     ]);
     setAdminUsers(users);
     setPages(pageData);
@@ -290,30 +301,26 @@ const Admin = ({ userRole }: AdminProps) => {
   };
 
   const handleRemoveAdmin = async (userId: string, name?: string) => {
-    await removeAdminUser(userId);
-    setAdminUsers(prev => prev.filter(u => u.user_id !== userId));
+    deleteAdminCredential(userId);
+    setAdminUsers(prev => prev.filter(u => u.id !== userId));
     toast({ title: "Admin Removed", description: `${name || "User"} has been removed from admin roster.` });
   };
 
   const handleBlockAdmin = async (userId: string, name?: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    await blockUser(userId, session.user.id, blockReason || undefined);
-    setAdminUsers(prev => prev.map(u => u.user_id === userId ? { ...u, is_blocked: true, block_reason: blockReason || undefined } : u));
+    blockAdmin(userId, blockReason || undefined);
+    setAdminUsers(prev => prev.map(u => u.id === userId ? { ...u, is_blocked: true, block_reason: blockReason || undefined } : u));
     setBlockReason("");
     toast({ title: "Admin Blocked", description: `${name || "User"} has been blocked from accessing the admin panel.` });
   };
 
   const handleUnblockAdmin = async (userId: string, name?: string) => {
-    await unblockUser(userId);
-    setAdminUsers(prev => prev.map(u => u.user_id === userId ? { ...u, is_blocked: false, block_reason: undefined } : u));
+    unblockAdmin(userId);
+    setAdminUsers(prev => prev.map(u => u.id === userId ? { ...u, is_blocked: false, block_reason: undefined } : u));
     toast({ title: "Admin Unblocked", description: `${name || "User"} can now access the admin panel again.` });
   };
 
   const handleTogglePage = async (page: PageVisibility) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    await togglePageVisibility(page.id, !page.is_visible, session.user.id);
+    await togglePageVisibility(page.id);
     setPages(prev => prev.map(p => p.id === page.id ? { ...p, is_visible: !p.is_visible } : p));
     toast({ title: page.is_visible ? "Page Hidden" : "Page Visible", description: `${page.page_name} is now ${page.is_visible ? "hidden from" : "visible to"} visitors.` });
   };
@@ -453,28 +460,26 @@ const Admin = ({ userRole }: AdminProps) => {
     const finalTitle = formData.title || (gitInfo ? gitInfo.repo.replace(/-/g, " ").replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()) : "Untitled Project");
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      const newProj = await db.addProject({
+      const newProj = addProjectLocal({
         title: finalTitle,
         description: formData.description || "A project by TECHSHASTRA member.",
-        github_url: formData.github,
-        image_url: formData.image || generateProjectImage(finalTitle, formData.description || "", formData.tags),
-        tech_stack: formData.tags.split(",").map(t => t.trim()).filter(t => t),
-        status: formData.status === "Completed" ? "completed" : "active",
-        created_by: session?.user.id || null,
-        featured: false
+        github: formData.github,
+        image: formData.image || generateProjectImage(finalTitle, formData.description || "", formData.tags),
+        tags: formData.tags.split(",").map(t => t.trim()).filter(t => t),
+        team: { lead: formData.lead || "TECHSHASTRA Team", designer: formData.designer || "Design Team" },
+        status: formData.status,
+        language: formData.language
       });
 
-      setProjects(prev => [newProj as any, ...prev]);
+      setProjects(prev => [newProj, ...prev]);
       setFormData({ title: "", description: "", github: "", image: "", tags: "", lead: "", designer: "", status: "Completed", language: "javascript" });
-      toast({ title: "Project Added", description: `${newProj.title} has been added and saved to Supabase.` });
+      toast({ title: "Project Added", description: `${newProj.title} has been added successfully.` });
       trackAction(`Added project: ${newProj.title}`);
     } catch (err: any) {
       console.error("Submission failed", err);
       toast({
         title: "Submission Failed",
-        description: "An error occurred while saving to the database. Check console for details.",
+        description: "An error occurred while saving. Check console for details.",
         variant: "destructive"
       });
     }
@@ -482,12 +487,12 @@ const Admin = ({ userRole }: AdminProps) => {
 
   const handleDelete = async (id: string) => {
     try {
-      await db.deleteProject(id);
+      deleteProjectLocal(id);
       setProjects(prev => prev.filter(p => p.id !== id));
-      toast({ title: "Project Deleted", description: "The project has been removed from Supabase." });
+      toast({ title: "Project Deleted", description: "The project has been removed." });
       trackAction("Deleted a project");
     } catch (err: any) {
-      toast({ title: "Delete Failed", description: "Could not remove project from database.", variant: "destructive" });
+      toast({ title: "Delete Failed", description: "Could not remove project.", variant: "destructive" });
     }
   };
 
@@ -540,30 +545,27 @@ const Admin = ({ userRole }: AdminProps) => {
       return;
     }
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
-
-      const newPost = await db.addBlogPost({
+      const newPost = addBlogLocal({
         title: blogForm.title.trim(),
         slug: blogForm.slug || generateSlug(blogForm.title),
         excerpt: blogForm.excerpt.trim(),
         content: blogForm.content.trim(),
         image_url: blogForm.image_url,
         published: blogForm.published,
-        published_at: new Date().toISOString(),
-        author_id: session.user.id
+        category: blogForm.category,
+        author: blogForm.author || currentUserName
       });
 
-      setBlogPosts(prev => [newPost as any, ...prev]);
+      setBlogPosts(prev => [newPost, ...prev]);
       setBlogForm({ title: "", slug: "", excerpt: "", content: "", image_url: "", category: "blog", author: "", published: true });
       setSlugManuallyEdited(false);
-      toast({ title: "✅ Post Published!", description: `"${newPost.title}" is now live and saved in Supabase.` });
+      toast({ title: "✅ Post Published!", description: `"${newPost.title}" is now live.` });
       trackAction(`Published blog: ${newPost.title}`);
     } catch (err: any) {
       console.error("Blog submission failed", err);
       toast({
         title: "Publish Failed",
-        description: "An error occurred while saving the post to Supabase.",
+        description: "An error occurred while saving the post.",
         variant: "destructive"
       });
     }
@@ -571,20 +573,20 @@ const Admin = ({ userRole }: AdminProps) => {
 
   const handleBlogDelete = async (id: string) => {
     try {
-      await db.deleteBlogPost(id);
+      deleteBlogLocal(id);
       setBlogPosts(prev => prev.filter(p => p.id !== id));
-      toast({ title: "Post Deleted", description: "The post has been removed from Supabase." });
+      toast({ title: "Post Deleted", description: "The post has been removed." });
       trackAction("Deleted a blog post");
     } catch (err: any) {
-      toast({ title: "Delete Failed", description: "Could not remove post from database.", variant: "destructive" });
+      toast({ title: "Delete Failed", description: "Could not remove post.", variant: "destructive" });
     }
   };
 
-  const handleTogglePublish = async (post: db.BlogPost) => {
+  const handleTogglePublish = async (post: BlogPost) => {
     try {
-      await db.updateBlogPost(post.id, { published: !post.published });
+      updateBlogLocal(post.id, { published: !post.published });
       setBlogPosts(prev => prev.map(p => p.id === post.id ? { ...p, published: !post.published } : p));
-      toast({ title: post.published ? "Post Unpublished" : "Post Published", description: `"${post.title}" visibility updated in Supabase.` });
+      toast({ title: post.published ? "Post Unpublished" : "Post Published", description: `"${post.title}" visibility updated.` });
     } catch (err: any) {
       toast({ title: "Update Failed", description: "Could not update publish status.", variant: "destructive" });
     }
@@ -624,24 +626,21 @@ const Admin = ({ userRole }: AdminProps) => {
       return;
     }
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      const newImage = await db.addGalleryImage({
+      const newImage = addGalleryLocal({
         title: galleryForm.title.trim(),
         description: galleryForm.description.trim(),
         image_url: galleryForm.image_url,
-        uploaded_by: session?.user.id || null,
       });
 
-      setGalleryImages(prev => [newImage as any, ...prev]);
+      setGalleryImages(prev => [newImage, ...prev]);
       setGalleryForm({ title: "", description: "", image_url: "" });
-      toast({ title: "✅ Image Added!", description: "The image is now live and saved in Supabase." });
+      toast({ title: "✅ Image Added!", description: "The image is now live." });
       trackAction("Added gallery image");
     } catch (err: any) {
       console.error("Gallery upload failed", err);
       toast({
         title: "Upload Failed",
-        description: "An error occurred while saving the image to Supabase.",
+        description: "An error occurred while saving the image.",
         variant: "destructive"
       });
     }
@@ -649,12 +648,12 @@ const Admin = ({ userRole }: AdminProps) => {
 
   const handleGalleryDelete = async (id: string) => {
     try {
-      await db.deleteGalleryImage(id);
+      deleteGalleryLocal(id);
       setGalleryImages(prev => prev.filter(img => img.id !== id));
-      toast({ title: "Image Deleted", description: "The image has been removed from Supabase." });
+      toast({ title: "Image Deleted", description: "The image has been removed." });
       trackAction("Deleted gallery image");
     } catch (err: any) {
-      toast({ title: "Delete Failed", description: "Could not remove image from database.", variant: "destructive" });
+      toast({ title: "Delete Failed", description: "Could not remove image.", variant: "destructive" });
     }
   };
 
@@ -728,13 +727,14 @@ const Admin = ({ userRole }: AdminProps) => {
       return;
     }
     try {
-      const newEvent = await db.addEvent({
+      const newEvent = await eventStore.addEvent({
         title: eventForm.title.trim(),
         description: eventForm.description.trim(),
         event_date: eventForm.date,
         location: eventForm.location,
         image_url: eventForm.image_url,
         status: eventForm.status,
+        featured: false,
       });
       setEvents(prev => [newEvent, ...prev]);
       setEventForm({ title: "", description: "", date: format(new Date(), "yyyy-MM-dd"), location: "Main Campus", image_url: "", status: "upcoming" });
@@ -747,7 +747,7 @@ const Admin = ({ userRole }: AdminProps) => {
 
   const handleEventDelete = async (id: string) => {
     try {
-      await db.deleteEvent(id);
+      await eventStore.deleteEvent(id);
       setEvents(prev => prev.filter(e => e.id !== id));
       toast({ title: "Event Deleted", description: "Event has been removed." });
       trackAction("Deleted an event");
@@ -764,7 +764,7 @@ const Admin = ({ userRole }: AdminProps) => {
       return;
     }
     try {
-      const newAchievement = await db.addAchievement({
+      const newAchievement = await achievementStore.addAchievement({
         title: achievementForm.title.trim(),
         description: achievementForm.description.trim(),
         date: achievementForm.date,
@@ -781,7 +781,7 @@ const Admin = ({ userRole }: AdminProps) => {
 
   const handleAchievementDelete = async (id: string) => {
     try {
-      await db.deleteAchievement(id);
+      await achievementStore.deleteAchievement(id);
       setAchievements(prev => prev.filter(a => a.id !== id));
       toast({ title: "Achievement Deleted", description: "Removed from trophy case." });
       trackAction("Deleted an achievement");
@@ -830,7 +830,7 @@ const Admin = ({ userRole }: AdminProps) => {
       return;
     }
     try {
-      const newPost = await db.addSocialPost({
+      const newPost = await socialStore.addSocialPost({
         platform: socialForm.platform,
         post_url: socialForm.post_url.trim(),
         content: socialForm.content.trim(),
@@ -849,7 +849,7 @@ const Admin = ({ userRole }: AdminProps) => {
 
   const handleSocialDelete = async (id: string) => {
     try {
-      await db.deleteSocialPost(id);
+      await socialStore.deleteSocialPost(id);
       setSocialPosts(prev => prev.filter(p => p.id !== id));
       toast({ title: "Post Deleted", description: "Social post removed." });
       trackAction("Deleted a social post");
@@ -866,7 +866,7 @@ const Admin = ({ userRole }: AdminProps) => {
       return;
     }
     try {
-      const newFAQ = await db.addFAQ({
+      const newFAQ = await faqStore.addFAQ({
         question: faqForm.question.trim(),
         answer: faqForm.answer.trim(),
         category: faqForm.category.trim(),
@@ -883,7 +883,7 @@ const Admin = ({ userRole }: AdminProps) => {
 
   const handleFAQDelete = async (id: string) => {
     try {
-      await db.deleteFAQ(id);
+      await faqStore.deleteFAQ(id);
       setFaqs(prev => prev.filter(f => f.id !== id));
       toast({ title: "FAQ Deleted", description: "Entry removed." });
       trackAction("Deleted FAQ entry");
@@ -895,7 +895,7 @@ const Admin = ({ userRole }: AdminProps) => {
   // ── Messages handlers ────────────────────────────────────────────────────────
   const handleMessageDelete = async (id: string) => {
     try {
-      await db.deleteMessage(id);
+      await messageStore.deleteMessage(id);
       setMessages(prev => prev.filter(m => m.id !== id));
       toast({ title: "Message Deleted", description: "Message removed from inbox." });
       trackAction("Deleted a message");
@@ -906,7 +906,7 @@ const Admin = ({ userRole }: AdminProps) => {
 
   const handleMarkAsRead = async (id: string, read: boolean) => {
     try {
-      await db.markMessageRead(id, read);
+      await messageStore.markMessageRead(id, read);
       setMessages(prev => prev.map(m => m.id === id ? { ...m, read } : m));
     } catch (err: any) {
       console.error("Failed to update message status", err);
@@ -2197,7 +2197,8 @@ const Admin = ({ userRole }: AdminProps) => {
                         const dob = (form.elements.namedItem("cred-dob") as HTMLInputElement).value;
                         const email = (form.elements.namedItem("cred-email") as HTMLInputElement).value;
                         try {
-                          const cred = createAdminCredential(name, mobile, dob, email);
+                          const cred = createAdminCredential(name, mobile, dob, "admin", email || undefined);
+                          const loginFormat = `${name},${mobile},${dob}`;
                           // Log creation
                           addLogEntry({
                             actor: currentUserName,
@@ -2211,7 +2212,8 @@ const Admin = ({ userRole }: AdminProps) => {
                             const subject = encodeURIComponent("Your TECHSHASTRA Admin Credentials");
                             const body = encodeURIComponent(
                               `Hello ${cred.name},\n\nYour admin credentials for the TECHSHASTRA Admin Panel have been created.\n\n` +
-                              `🔑 Username: ${cred.username}\n🔒 Password: ${cred.password}\n\n` +
+                              `🔑 Login: ${loginFormat}\n\n` +
+                              `(Format: Name,Mobile,DateOfBirth — enter this in the login field)\n\n` +
                               `Please login at: ${window.location.origin}/auth\n\n` +
                               `Keep these credentials private. Do not share them with anyone.\n\n` +
                               `Regards,\nTECHSHASTRA Super Admin`
@@ -2221,8 +2223,8 @@ const Admin = ({ userRole }: AdminProps) => {
                           toast({
                             title: "✅ Admin Created!",
                             description: email
-                              ? `Credentials sent to ${email}. Username: ${cred.username}`
-                              : `Username: ${cred.username} | Password: ${cred.password}`,
+                              ? `Credentials sent to ${email}. Login: ${loginFormat}`
+                              : `Login: ${loginFormat}`,
                           });
                           trackAction(`Created admin: ${name}`);
                           form.reset();
@@ -2303,10 +2305,10 @@ const Admin = ({ userRole }: AdminProps) => {
                                 </div>
                                 <div className="flex items-center gap-2 mt-0.5">
                                   <Badge variant="outline" className="text-[10px] font-mono">
-                                    {cred.username}
+                                    {cred.name},{cred.mobile}
                                   </Badge>
                                   <span className="text-[10px] text-muted-foreground">
-                                    {cred.mobile} · {new Date(cred.dob).toLocaleDateString('en-IN')}
+                                    {new Date(cred.dob).toLocaleDateString('en-IN')}
                                   </span>
                                 </div>
                                 {cred.email && (
@@ -2321,10 +2323,11 @@ const Admin = ({ userRole }: AdminProps) => {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                title="Copy credentials"
+                                title="Copy login credentials"
                                 onClick={() => {
-                                  navigator.clipboard.writeText(`Username: ${cred.username}\nPassword: ${cred.password}`);
-                                  toast({ title: "Copied!", description: "Credentials copied to clipboard" });
+                                  const loginFormat = `${cred.name},${cred.mobile},${cred.dob}`;
+                                  navigator.clipboard.writeText(`Login: ${loginFormat}`);
+                                  toast({ title: "Copied!", description: "Login credentials copied to clipboard" });
                                 }}
                               >
                                 <Copy className="w-3.5 h-3.5" />
@@ -2335,10 +2338,12 @@ const Admin = ({ userRole }: AdminProps) => {
                                   variant="ghost"
                                   title="Resend credentials by email"
                                   onClick={() => {
+                                    const loginFormat = `${cred.name},${cred.mobile},${cred.dob}`;
                                     const subject = encodeURIComponent("Your TECHSHASTRA Admin Credentials");
                                     const body = encodeURIComponent(
                                       `Hello ${cred.name},\n\nYour admin credentials for the TECHSHASTRA Admin Panel:\n\n` +
-                                      `🔑 Username: ${cred.username}\n🔒 Password: ${cred.password}\n\n` +
+                                      `🔑 Login: ${loginFormat}\n\n` +
+                                      `(Format: Name,Mobile,DateOfBirth)\n\n` +
                                       `Login at: ${window.location.origin}/auth\n\nKeep these private.\n\nRegards,\nTECHSHASTRA Super Admin`
                                     );
                                     window.open(`mailto:${cred.email}?subject=${subject}&body=${body}`);
@@ -2353,7 +2358,11 @@ const Admin = ({ userRole }: AdminProps) => {
                                 variant={cred.is_blocked ? "default" : "outline"}
                                 onClick={() => {
                                   const wasBlocked = cred.is_blocked;
-                                  toggleAdminCredBlock(cred.id, !wasBlocked);
+                                  if (wasBlocked) {
+                                    unblockAdmin(cred.id);
+                                  } else {
+                                    blockAdmin(cred.id);
+                                  }
                                   addLogEntry({
                                     actor: currentUserName,
                                     action: `${wasBlocked ? "Unblocked" : "Blocked"} admin: ${cred.name}`,
@@ -2751,6 +2760,82 @@ const Admin = ({ userRole }: AdminProps) => {
                         ))}
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+
+                {/* Data Backup & Export */}
+                <Card className="border-primary/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Download className="w-5 h-5 text-primary" />
+                      Data Backup & Export
+                    </CardTitle>
+                    <CardDescription>
+                      Export all localStorage data to JSON file or import from backup. Storage: {getStorageSize()}KB used.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        onClick={() => {
+                          exportAllData(currentUserName);
+                          toast({ title: "Backup Downloaded", description: "All data exported successfully." });
+                          trackAction("Exported all data");
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <Download className="w-4 h-4" />
+                        Export All Data
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = '.json';
+                          input.onchange = async (e: any) => {
+                            const file = e.target?.files?.[0];
+                            if (file) {
+                              try {
+                                await importAllData(file);
+                                toast({ title: "Import Successful", description: "Data restored from backup." });
+                                window.location.reload();
+                              } catch (error) {
+                                toast({ title: "Import Failed", description: String(error), variant: "destructive" });
+                              }
+                            }
+                          };
+                          input.click();
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <Upload className="w-4 h-4" />
+                        Import Backup
+                      </Button>
+
+                      <Button
+                        variant="destructive"
+                        onClick={() => {
+                          if (confirm("⚠️ This will DELETE ALL data! This cannot be undone. Are you sure?")) {
+                            clearAllData();
+                            toast({ title: "All Data Cleared", description: "localStorage has been wiped." });
+                            setTimeout(() => window.location.reload(), 1000);
+                          }
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Clear All Data
+                      </Button>
+                    </div>
+                    
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <p>• <strong>Export</strong>: Download JSON backup of all data (projects, blog, events, etc.)</p>
+                      <p>• <strong>Import</strong>: Restore data from a previous backup file</p>
+                      <p>• <strong>Clear</strong>: Remove all data from browser storage (use with caution!)</p>
+                      <p className="text-amber-500">💡 Tip: Export regularly to prevent data loss on cache clear</p>
+                    </div>
                   </CardContent>
                 </Card>
               </div>

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Mail, Phone, MapPin, Linkedin, Instagram, Send, CheckCircle2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { addMessage } from "@/lib/stores/messageStore";
 import { useToast } from "@/hooks/use-toast";
 
 const contactInfo = [
@@ -42,18 +42,13 @@ const Contact = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase
-        .from("contact_messages")
-        .insert([
-          {
-            name: formData.name,
-            email: formData.email,
-            subject: formData.subject,
-            message: formData.message,
-          }
-        ]);
-
-      if (error) throw error;
+      await addMessage({
+        name: formData.name,
+        email: formData.email,
+        subject: formData.subject,
+        message: formData.message,
+        read: false,
+      });
 
       setSubmitted(true);
       toast({

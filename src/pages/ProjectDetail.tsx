@@ -1,61 +1,27 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { getProject, type Project } from "@/lib/projectStore";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, Github, ExternalLink } from "lucide-react";
-
-interface ProjectWithMembers {
-  id: string;
-  title: string;
-  description: string;
-  long_description: string | null;
-  image_url: string | null;
-  github_url: string | null;
-  demo_url: string | null;
-  tech_stack: string[];
-  status: string;
-  project_members: Array<{
-    role: string;
-    profiles: {
-      full_name: string;
-    };
-  }>;
-}
+import { ArrowLeft, Github, ExternalLink, Terminal } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const ProjectDetail = () => {
   const { id } = useParams();
-  const [project, setProject] = useState<ProjectWithMembers | null>(null);
+  const navigate = useNavigate();
+  const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (id) {
-      fetchProject();
-    }
-  }, [id]);
-
-  const fetchProject = async () => {
-    const { data, error } = await supabase
-      .from("projects")
-      .select(`
-        *,
-        project_members (
-          role,
-          profiles (full_name)
-        )
-      `)
-      .eq("id", id)
-      .single();
-
-    if (!error && data) {
-      setProject(data as any);
-    }
+    if (!id) return;
+    const found = getProject(id);
+    setProject(found);
     setLoading(false);
-  };
+  }, [id]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -77,11 +43,13 @@ const ProjectDetail = () => {
           </div>
         ) : project ? (
           <div className="space-y-8">
+            {/* Header */}
             <div>
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
                 <Badge>{project.status}</Badge>
-                {project.tech_stack && project.tech_stack.map((tech) => (
-                  <Badge key={tech} variant="outline">{tech}</Badge>
+                <Badge variant="secondary">{project.language}</Badge>
+                {project.tags.map((tag) => (
+                  <Badge key={tag} variant="outline">{tag}</Badge>
                 ))}
               </div>
               <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
@@ -90,68 +58,62 @@ const ProjectDetail = () => {
               <p className="text-xl text-muted-foreground">{project.description}</p>
             </div>
 
-            {project.image_url && (
+            {/* Cover image */}
+            {project.image && (
               <img
-                src={project.image_url}
+                src={project.image}
                 alt={project.title}
-                className="w-full rounded-lg shadow-lg"
+                className="w-full rounded-lg shadow-lg max-h-96 object-cover"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             )}
 
-            <div className="flex gap-4">
-              {project.github_url && (
+            {/* Action buttons */}
+            <div className="flex flex-wrap gap-4">
+              {project.github && (
                 <Button asChild>
-                  <a href={project.github_url} target="_blank" rel="noopener noreferrer">
+                  <a href={project.github} target="_blank" rel="noopener noreferrer">
                     <Github className="mr-2 h-4 w-4" />
                     View Code
                   </a>
                 </Button>
               )}
-              {project.demo_url && (
+              {project.demo && (
                 <Button asChild variant="outline">
-                  <a href={project.demo_url} target="_blank" rel="noopener noreferrer">
+                  <a href={project.demo} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="mr-2 h-4 w-4" />
                     Live Demo
                   </a>
                 </Button>
               )}
+              <Button variant="outline" onClick={() => navigate(`/projects/${id}/live`)}>
+                <Terminal className="mr-2 h-4 w-4" />
+                Run Live
+              </Button>
             </div>
 
-            {project.long_description && (
-              <Card>
-                <CardContent className="pt-6">
-                  <h2 className="text-2xl font-bold mb-4">About the Project</h2>
-                  <p className="text-muted-foreground whitespace-pre-wrap">
-                    {project.long_description}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-
-            {project.project_members.length > 0 && (
-              <Card>
-                <CardContent className="pt-6">
-                  <h2 className="text-2xl font-bold mb-4">Team Members</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {project.project_members.map((member, index) => (
-                      <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
-                        <Avatar>
-                          <AvatarFallback>
-                            {member.profiles.full_name[0]}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-semibold">{member.profiles.full_name}</p>
-                          {member.role && (
-                            <p className="text-sm text-muted-foreground">{member.role}</p>
-                          )}
-                        </div>
+            {/* Team */}
+            <Card>
+              <CardContent className="pt-6">
+                <h2 className="text-2xl font-bold mb-4">Team</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[
+                    { name: project.team.lead, role: "Lead" },
+                    { name: project.team.designer, role: "Designer" },
+                  ].filter(m => m.name).map((member, index) => (
+                    <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
+                      <Avatar>
+                        <AvatarFallback>{member.name[0]?.toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold">{member.name}</p>
+                        <p className="text-sm text-muted-foreground">{member.role}</p>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         ) : (
           <div className="text-center py-16">

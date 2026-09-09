@@ -11,11 +11,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, MapPin, Clock, Users, Loader2 } from "lucide-react";
-import * as db from "@/lib/supabaseStore";
+import * as eventStore from "@/lib/stores/eventStore";
 import { format } from "date-fns";
 
 const Events = () => {
-  const [events, setEvents] = useState<db.Event[]>([]);
+  const [events, setEvents] = useState<eventStore.Event[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,7 +24,7 @@ const Events = () => {
 
   const fetchEvents = async () => {
     try {
-      const data = await db.getEvents();
+      const data = await eventStore.getEvents();
       setEvents(data);
     } catch (err) {
       console.error("Failed to fetch events", err);

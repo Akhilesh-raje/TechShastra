@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getResources, type Resource } from "@/lib/stores/resourceStore";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,14 +33,8 @@ const Resources = () => {
   }, []);
 
   const fetchResources = async () => {
-    const { data, error } = await supabase
-      .from("resources")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (!error && data) {
-      setResources(data);
-    }
+    const data = await getResources();
+    setResources(data);
     setLoading(false);
   };
 

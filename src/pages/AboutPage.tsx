@@ -78,7 +78,7 @@ const AboutPage = () => {
                 
                 <motion.h1 
                   variants={itemVariants}
-                  className="text-5xl md:text-8xl font-bold tracking-tight leading-[0.9]"
+                  className="text-4xl sm:text-6xl md:text-8xl font-bold tracking-tight leading-[1] sm:leading-[0.9]"
                 >
                   Architecting the <br />
                   <span className="text-primary italic relative inline-block">
@@ -87,7 +87,7 @@ const AboutPage = () => {
                       initial={{ width: 0 }}
                       animate={{ width: "100%" }}
                       transition={{ delay: 1, duration: 1 }}
-                      className="absolute bottom-2 left-0 h-1 bg-primary/30 -z-10" 
+                      className="absolute bottom-1 sm:bottom-2 left-0 h-1 bg-primary/30 -z-10" 
                     />
                   </span>
                 </motion.h1>
@@ -103,14 +103,14 @@ const AboutPage = () => {
             </section>
 
           {/* Mission & Vision */}
-          <section className="py-24 grid md:grid-cols-2 gap-12">
+          <section className="py-16 sm:py-24 grid md:grid-cols-2 gap-8 sm:gap-12">
             <motion.div
               initial={{ opacity: 0, x: -50 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true, margin: "-100px" }}
               transition={{ duration: 0.8 }}
             >
-              <Card className="glass border-0 h-full p-10 space-y-8 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500 overflow-hidden group">
+              <Card className="glass border-0 h-full p-6 sm:p-10 space-y-6 sm:space-y-8 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500 overflow-hidden group">
                 <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-500">
                   <Target className="w-8 h-8" />
                 </div>
@@ -145,7 +145,7 @@ const AboutPage = () => {
               viewport={{ once: true, margin: "-100px" }}
               transition={{ duration: 0.8 }}
             >
-              <Card className="glass border-0 h-full p-10 space-y-8 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500 group overflow-hidden">
+              <Card className="glass border-0 h-full p-6 sm:p-10 space-y-6 sm:space-y-8 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500 group overflow-hidden">
                 <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center group-hover:bg-accent group-hover:text-accent-foreground transition-all duration-500">
                   <Eye className="w-8 h-8" />
                 </div>
@@ -166,10 +166,10 @@ const AboutPage = () => {
                     <motion.div 
                       key={idx}
                       whileHover={{ y: -5 }}
-                      className="p-6 rounded-3xl bg-muted/30 border border-foreground/5 text-center group-hover:border-primary/20 transition-all"
+                      className="p-4 sm:p-6 rounded-3xl bg-muted/30 border border-foreground/5 text-center group-hover:border-primary/20 transition-all"
                     >
-                      <p className="text-3xl font-bold text-primary">{stat.val}</p>
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold mt-1">{stat.lab}</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-primary">{stat.val}</p>
+                      <p className="text-[8px] sm:text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold mt-1">{stat.lab}</p>
                     </motion.div>
                   ))}
                 </div>
@@ -220,9 +220,9 @@ const AboutPage = () => {
                       whileInView={{ opacity: 1, x: 0 }}
                       viewport={{ once: true, margin: "-50px" }}
                       transition={{ duration: 0.8, delay: idx * 0.2, ease: "easeOut" }}
-                      className={`relative pl-12 md:pl-0 md:w-1/2 ${idx % 2 === 0 ? "md:pr-16 md:text-right ml-0" : "md:pl-16 md:ml-auto text-left"}`}
+                      className={`relative pl-10 md:pl-0 md:w-1/2 ${idx % 2 === 0 ? "md:pr-16 md:text-right ml-0" : "md:pl-16 md:ml-auto text-left"}`}
                     >
-                      <div className="bg-muted/20 backdrop-blur-sm p-10 rounded-[2.5rem] border border-white/5 hover:border-primary/40 transition-all duration-500 group overflow-hidden relative">
+                      <div className="bg-muted/20 backdrop-blur-sm p-6 sm:p-10 rounded-[2rem] sm:rounded-[2.5rem] border border-white/5 hover:border-primary/40 transition-all duration-500 group overflow-hidden relative">
                         <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-20 transition-opacity duration-700 group-hover:rotate-12 group-hover:scale-125">
                           <Calendar className="w-20 h-20" />
                         </div>
@@ -238,15 +238,15 @@ const AboutPage = () => {
           </section>
 
           {/* Mentorship & Leadership */}
-          <section className="py-24 space-y-16">
+          <section className="py-16 sm:py-24 space-y-12 sm:space-y-16">
             <motion.div 
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               className="text-center space-y-4"
             >
-              <h2 className="text-5xl font-bold italic">Mentorship & Leadership</h2>
-              <p className="text-muted-foreground text-lg">Guided by expertise, driven by community.</p>
+              <h2 className="text-3xl sm:text-5xl font-bold italic">Mentorship & Leadership</h2>
+              <p className="text-base sm:text-lg text-muted-foreground">Guided by expertise, driven by community.</p>
             </motion.div>
 
             <motion.div 
@@ -273,7 +273,7 @@ const AboutPage = () => {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-60" />
                     </CardHeader>
-                    <CardContent className="p-10 text-center space-y-4 relative -mt-20 bg-card/40 backdrop-blur-xl mx-6 rounded-[2.5rem] border border-white/10 shadow-2xl group-hover:-translate-y-2 transition-transform duration-500">
+                    <CardContent className="p-6 sm:p-10 text-center space-y-4 relative -mt-16 sm:-mt-20 bg-card/40 backdrop-blur-xl mx-4 sm:mx-6 rounded-[2rem] sm:rounded-[2.5rem] border border-white/10 shadow-2xl group-hover:-translate-y-2 transition-transform duration-500">
                       <div className="space-y-1">
                         <h3 className="text-2xl font-bold">{leader.name}</h3>
                         <p className="text-primary text-[10px] font-bold uppercase tracking-[0.3em]">{leader.role}</p>
@@ -294,11 +294,11 @@ const AboutPage = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
             >
-              <Card className="bg-primary/5 border border-primary/20 p-16 text-center rounded-[4rem] space-y-10 relative overflow-hidden">
+              <Card className="bg-primary/5 border border-primary/20 p-8 sm:p-16 text-center rounded-[2.5rem] sm:rounded-[4rem] space-y-8 sm:space-y-10 relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-30 -z-10" />
                 <div className="space-y-4">
-                  <h2 className="text-5xl md:text-6xl font-bold italic tracking-tighter">Be Part of the <span className="text-primary">Legacy</span></h2>
-                  <p className="text-xl text-muted-foreground max-w-2xl mx-auto font-light leading-relaxed">
+                  <h2 className="text-3xl sm:text-6xl font-bold italic tracking-tighter leading-tight">Be Part of the <span className="text-primary">Legacy</span></h2>
+                  <p className="text-base sm:text-xl text-muted-foreground max-w-2xl mx-auto font-light leading-relaxed">
                     Join 500+ innovators who are pushing the boundaries of what's possible. 
                     Your journey towards technical dominance starts here.
                   </p>

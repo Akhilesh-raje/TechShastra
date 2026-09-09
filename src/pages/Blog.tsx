@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Newspaper, FileText, Megaphone } from "lucide-react";
 import { format } from "date-fns";
-import { db, type BlogPost } from "@/lib/supabaseStore";
+import { getAllBlogPosts, type BlogPost } from "@/lib/blogStore";
 
 const Blog = () => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -15,7 +15,7 @@ const Blog = () => {
   useEffect(() => {
     const fetchPosts = async () => {
       try {
-        const data = await db.getBlogPosts();
+        const data = getAllBlogPosts().filter(p => p.published);
         setPosts(data || []);
       } catch (err) {
         console.error("Failed to fetch blog posts:", err);

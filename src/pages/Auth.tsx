@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { authenticateCustom, type AdminRole } from "@/lib/adminStore";
+import { verifyAdmin, type AdminRole } from "@/lib/adminStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,17 +33,27 @@ const Auth = () => {
     // Simulate a brief auth delay for UX
     await new Promise((r) => setTimeout(r, 600));
 
-    // Authenticate against custom credentials
-    const result = authenticateCustom(username.trim(), password);
-
-    if (result.blocked) {
-      setBlockedName(result.name || "");
-      setAuthState("blocked");
+    // Parse credentials (format: name, mobile, dob separated by commas or spaces)
+    // Expected format: "Name,9876543210,2000-01-01" or similar
+    const parts = username.split(/[,\s]+/).map(s => s.trim());
+    
+    if (parts.length < 3) {
+      toast({
+        title: "Invalid Format",
+        description: "Please enter: Name, Mobile, DOB",
+        variant: "destructive",
+      });
+      setAuthState("denied");
       setLoading(false);
       return;
     }
 
-    if (!result.role) {
+    const [name, mobile, dob] = parts;
+
+    // Authenticate against custom credentials
+    const result = verifyAdmin(name, mobile, dob);
+
+    if (!result.success) {
       setAuthState("denied");
       setLoading(false);
       return;
@@ -53,14 +63,15 @@ const Auth = () => {
     sessionStorage.setItem(
       "ts_admin_session",
       JSON.stringify({
+        userId: result.id,
         role: result.role,
-        name: result.name,
+        name: name,
         authenticated_at: new Date().toISOString(),
       })
     );
 
     toast({
-      title: `Welcome, ${result.role === "super_admin" ? "Super Admin" : result.name || "Admin"}`,
+      title: `Welcome, ${result.role === "super_admin" ? "Super Admin" : name}`,
       description: "Access granted to the admin panel.",
     });
     navigate("/admin", { replace: true });

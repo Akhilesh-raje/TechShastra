@@ -5,7 +5,7 @@
  * Fetches data from the projectStore and supports live demo links.
  */
 import { useState, useEffect } from "react";
-import { db, type Project } from "@/lib/supabaseStore";
+import { getAllProjects, type Project } from "@/lib/projectStore";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,7 +22,7 @@ const Projects = () => {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const data = await db.getAllProjects();
+        const data = getAllProjects();
         setAllProjects(data);
       } catch (err) {
         console.error("Failed to fetch projects:", err);

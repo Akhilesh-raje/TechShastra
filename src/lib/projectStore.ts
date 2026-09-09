@@ -93,6 +93,11 @@ export const getAllProjects = (): Project[] => {
     return [...stored, ...hardcodedProjects];
 };
 
+export const getProject = (id: string): Project | null => {
+    const projects = getAllProjects();
+    return projects.find(p => p.id === id) || null;
+};
+
 export const addProject = (project: Omit<Project, "id" | "createdAt">): Project => {
     const projects = getStoredProjects();
     const newProject: Project = {

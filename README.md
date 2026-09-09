@@ -30,7 +30,8 @@ TECHSHASTRA is the dynamic website for UTU Dehradun's premier technology club. I
 - 📜 **Certificate generation engine** with Excel import and bulk email sending
 - 📊 **Admin dashboard** for managing all website content
 - 🔬 **Research hub** for papers and books with PDF upload/download
-- 🔐 **Supabase Auth** for protected admin access
+- 💾 **localStorage-based architecture** - No backend required!
+- 📥 **Data backup system** - Export/import all data as JSON
 
 ---
 
@@ -44,11 +45,9 @@ cd remix-of-shastra-hub
 # Install dependencies
 npm install
 
-# Create environment file
+# (Optional) Create environment file for EmailJS certificate feature
 cp .env.example .env
-# Add your Supabase URL and anon key:
-#   VITE_SUPABASE_URL=your_url
-#   VITE_SUPABASE_ANON_KEY=your_key
+# Edit .env and add your EmailJS credentials
 
 # Start development server
 npm run dev
@@ -62,7 +61,7 @@ npm run dev
 |---------|-------|-------------|
 | **Homepage** | `/` | Hero, About, Mentor, Domains, Team, Gallery preview, Contact |
 | **Projects** | `/projects` | Project showcase with live code runner |
-| **Events** | `/events` | Upcoming & past events with registration |
+| **Events** | `/events` | Upcoming & past events |
 | **Blog** | `/blog` | News, tutorials, and announcements |
 | **Publications** | `/publications` | Research papers & books |
 | **Resources** | `/resources` | Curated learning materials |
@@ -70,8 +69,8 @@ npm run dev
 | **FAQ** | `/faq` | Frequently asked questions |
 | **Achievements** | `/achievements` | Club milestones & awards |
 | **Join** | `/join` | Multi-role membership application |
-| **Admin** | `/admin` | Content management + certificate sender |
-| **Auth** | `/auth` | Login / signup (Supabase) |
+| **Admin** | `/admin` | Content management + certificate sender + data backup |
+| **Auth** | `/auth` | Login / signup (Custom credentials) |
 
 📚 **Detailed documentation for every feature is in the [`docs/`](docs/README.md) folder.**
 
@@ -84,8 +83,8 @@ npm run dev
 | **Frontend** | React 18 · TypeScript 5 · Vite 5 |
 | **Styling** | Tailwind CSS 3 · shadcn/ui (49 components) |
 | **Animations** | Framer Motion |
-| **Backend** | Supabase (PostgreSQL, Auth, Storage) |
-| **Client Storage** | localStorage (Projects, Blog, Gallery, Publications) |
+| **Data Storage** | localStorage (All data client-side) |
+| **Backup System** | JSON export/import functionality |
 | **Emails** | EmailJS (Certificate distribution) |
 | **Live Code** | StackBlitz SDK · Pyodide |
 | **Spreadsheets** | SheetJS (xlsx) |
@@ -104,20 +103,49 @@ remix-of-shastra-hub/
 │   ├── components/      # 14 custom + 49 shadcn/ui components
 │   │   └── ui/          # shadcn/ui component library
 │   ├── hooks/           # use-mobile, use-toast
-│   ├── integrations/    # Supabase client config
 │   ├── lib/             # Data stores & utilities
-│   │   ├── projectStore.ts
-│   │   ├── blogStore.ts
-│   │   ├── galleryStore.ts
-│   │   ├── publicationStore.ts
+│   │   ├── stores/      # Individual entity stores (events, achievements, etc.)
+│   │   ├── localStore.ts      # Unified localStorage CRUD system
+│   │   ├── dataBackup.ts      # Export/import functionality
+│   │   ├── projectStore.ts    # Projects data
+│   │   ├── blogStore.ts       # Blog posts data
+│   │   ├── galleryStore.ts    # Gallery images data
+│   │   ├── publicationStore.ts # Research papers & books data
 │   │   └── utils.ts
 │   ├── pages/           # 18 route pages
 │   ├── App.tsx          # Root routing
 │   └── main.tsx         # Entry point
-├── supabase/            # Database migrations
 ├── package.json
 └── README.md            # ← You are here
 ```
+
+---
+
+## 💾 Data Architecture
+
+**localStorage-Only Design**
+- All data stored in browser localStorage
+- No backend server or database required
+- Zero hosting costs
+- Lightning-fast performance (no network calls)
+- ~10MB storage limit per domain (sufficient for typical club data)
+
+**Data Stores:**
+- Projects, Blog, Gallery, Publications
+- Events, Achievements, FAQs
+- Contact Messages, Social Posts
+- Admin Credentials, Activity Logs
+
+**Backup System:**
+- Export all data as JSON file from Admin panel
+- Import data from backup file
+- Prevents data loss on browser cache clear
+- Easy data migration between environments
+
+**Trade-offs:**
+- ✅ Pros: Simple, fast, no costs, no server maintenance
+- ⚠️ Cons: Data is per-browser, cleared on cache clear
+- 💡 Solution: Regular backups via export feature
 
 ---
 
@@ -168,6 +196,120 @@ npm run build     # Production build
 npm run preview   # Preview production build
 npm run lint      # Run ESLint
 ```
+
+---
+
+## 🚀 Deployment
+
+**Recommended: Vercel (Zero Config)**
+
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+vercel --prod
+```
+
+**Why Vercel:**
+- Zero configuration for Vite projects
+- Automatic HTTPS
+- Global CDN
+- Free tier: 100GB bandwidth/month
+- No backend = no additional costs
+
+**Alternative Options:**
+- **Netlify**: Similar to Vercel, drag-and-drop deployment
+- **GitHub Pages**: Free hosting for static sites
+- **Any static host**: Cloudflare Pages, Render, etc.
+
+**Build Output:**
+- Run `npm run build`
+- Deploy the `dist/` folder to any static hosting
+
+---
+
+## 💡 Admin Panel Features
+
+**Content Management:**
+- Add/Edit/Delete: Projects, Blog Posts, Events, Achievements, FAQs, Gallery Images
+- Custom admin credential system (no signup required)
+- Activity log tracking all admin actions
+
+**Certificate Sender:**
+- Upload Excel file with recipient data
+- Design certificate with drag-and-drop fields
+- Bulk generate and email certificates via EmailJS
+- Support for Hindi/Devanagari fonts
+
+**Data Backup:**
+- Export all data as JSON file
+- Import backup to restore data
+- Storage size monitoring
+- One-click data clearing
+
+**Super Admin Controls:**
+- Create admin credentials
+- Block/unblock admins
+- Activity log with revert functionality
+- Page visibility toggles
+
+---
+
+## 🔐 Security Notes
+
+**Custom Auth System:**
+- No traditional signup - admins created via super admin panel
+- Credentials generated from: name + mobile + DOB
+- Session stored in sessionStorage
+- Super admin hardcoded (see `src/lib/adminStore.ts`)
+
+**Important:**
+- Change super admin credentials before deployment
+- Regularly export data backups
+- Don't share admin credentials publicly
+
+---
+
+## 📊 Data Management
+
+**Adding Initial Data:**
+1. Login to admin panel (`/auth`)
+2. Use respective tabs to add content
+3. Export backup for safekeeping
+
+**Migrating Data:**
+1. Export from old environment
+2. Import in new environment
+3. Verify all content loaded correctly
+
+**Browser Storage Limits:**
+- localStorage: ~10MB per domain
+- Typical usage: 1-2MB for full club data
+- Monitor via Admin → Data Backup section
+
+---
+
+## 🐛 Troubleshooting
+
+**Data disappeared:**
+- Browser cache was cleared
+- Import latest backup from Admin panel
+
+**Admin can't login:**
+- Check if credentials are correct
+- Verify session in sessionStorage
+- Try clearing browser cache and logging in again
+
+**Build fails:**
+- Run `npm install` to ensure all dependencies are installed
+- Check for TypeScript errors: `npm run lint`
+- Delete `node_modules` and `package-lock.json`, reinstall
+
+**Images not loading:**
+- Check if image URLs are valid
+- For base64 images, ensure size is reasonable (<500KB)
+- Consider using external image hosting for large files
 
 ---
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getAchievements, type Achievement } from "@/lib/stores/achievementStore";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,15 +23,14 @@ const Achievements = () => {
   }, []);
 
   const fetchAchievements = async () => {
-    const { data, error } = await supabase
-      .from("achievements")
-      .select("*")
-      .order("date", { ascending: false });
-
-    if (!error && data) {
+    try {
+      const data = await getAchievements();
       setAchievements(data);
+    } catch (error) {
+      console.error("Error fetching achievements:", error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const icons = [Trophy, Medal, Award];

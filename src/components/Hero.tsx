@@ -39,19 +39,19 @@ const Hero = () => {
           </div>
 
           {/* Main Heading */}
-          <h1 className="font-heading font-light tracking-[0.15em] leading-[1.1] text-foreground">
-            <span className="block text-5xl sm:text-7xl md:text-8xl lg:text-9xl">
+          <h1 className="font-heading font-light tracking-[0.1em] sm:tracking-[0.15em] leading-[1.1] text-foreground">
+            <span className="block text-4xl sm:text-7xl md:text-8xl lg:text-9xl">
               TECHSHASTRA
             </span>
           </h1>
 
           {/* Tagline */}
-          <p className="font-heading text-lg md:text-2xl font-light tracking-[0.25em] uppercase text-foreground/70">
+          <p className="font-heading text-sm sm:text-lg md:text-2xl font-light tracking-[0.2em] sm:tracking-[0.25em] uppercase text-foreground/70">
             Innovate · Create · Dominate
           </p>
 
           {/* Description & CTAs wrapped in a glass plate */}
-          <div className="relative p-10 md:p-14 rounded-[3rem] glass border-0 bg-background/5 backdrop-blur-xl max-w-3xl mx-auto space-y-8">
+          <div className="relative p-6 sm:p-10 md:p-14 rounded-[2rem] sm:rounded-[3rem] glass border-0 bg-background/5 backdrop-blur-xl max-w-3xl mx-auto space-y-6 sm:space-y-8">
             {/* Description */}
             <p className="font-sans text-sm md:text-base font-light leading-relaxed text-foreground/75 mx-auto">
               The official technical and entrepreneurship club of UTU fostering innovation,
@@ -63,17 +63,17 @@ const Hero = () => {
               <Link to="/join">
                 <Button
                   size="lg"
-                  className="rounded-full px-12 py-7 font-sans font-light text-sm tracking-[0.1em] bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-500 shadow-xl"
+                  className="w-full sm:w-auto rounded-full px-8 sm:px-12 py-6 sm:py-7 font-sans font-light text-xs sm:text-sm tracking-[0.1em] bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-500 shadow-xl"
                 >
                   Join Our Community
                   <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
               </Link>
-              <Link to="/projects">
+              <Link to="/projects" className="w-full sm:w-auto">
                 <Button
                   size="lg"
                   variant="outline"
-                  className="rounded-full px-12 py-7 font-sans font-light text-sm tracking-[0.1em] border border-foreground/20 bg-card/10 backdrop-blur-md hover:bg-card/40 text-foreground/80 hover:text-foreground transition-all duration-500"
+                  className="w-full sm:w-auto rounded-full px-8 sm:px-12 py-6 sm:py-7 font-sans font-light text-xs sm:text-sm tracking-[0.1em] border border-foreground/20 bg-card/10 backdrop-blur-md hover:bg-card/40 text-foreground/80 hover:text-foreground transition-all duration-500"
                 >
                   Explore Projects
                 </Button>
@@ -81,8 +81,8 @@ const Hero = () => {
             </div>
 
             {/* Narrative Stats Row */}
-            <div className="pt-8 border-t border-foreground/5">
-              <p className="font-sans text-[10px] sm:text-xs font-normal tracking-[0.2em] uppercase text-foreground/50">
+            <div className="pt-6 sm:pt-8 border-t border-foreground/5">
+              <p className="font-sans text-[8px] sm:text-xs font-normal tracking-[0.15em] sm:tracking-[0.2em] uppercase text-foreground/50">
                 Trusted by <span className="text-foreground font-medium">500+ members</span> across <span className="text-foreground font-medium">50+ projects</span> since <span className="text-foreground font-medium">2023</span>
               </p>
             </div>
