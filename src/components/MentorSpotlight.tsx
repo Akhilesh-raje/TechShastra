@@ -23,7 +23,7 @@ const MentorSpotlight = () => {
                             <img
                                 src={mentorImg}
                                 alt="Dr. Sandeep Singh Negi"
-                                className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
+                                className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
                             />
                             <div className="absolute inset-0 bg-primary/10 group-hover:bg-transparent transition-colors duration-700" />
                         </div>

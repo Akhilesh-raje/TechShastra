@@ -4,10 +4,12 @@ import { Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { motion, AnimatePresence } from "framer-motion";
+import { getStudentSession } from "@/lib/studentStore";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const studentSession = getStudentSession();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -82,6 +84,22 @@ const Navbar = () => {
               )
             ))}
             <ThemeToggle />
+            {studentSession && (
+              <>
+                <Link to="/members"
+                  className="text-sm font-light tracking-wider text-foreground/70 hover:text-foreground transition-colors duration-300">
+                  Members
+                </Link>
+                <Link to={`/members/${studentSession.githubUsername}`}
+                  className="flex items-center gap-2 text-sm font-light tracking-wider text-foreground/70 hover:text-foreground transition-colors duration-300">
+                  <img
+                    src={`https://avatars.githubusercontent.com/${studentSession.githubUsername}?s=32`}
+                    alt={studentSession.name}
+                    className="w-7 h-7 rounded-full ring-2 ring-primary/30 object-cover"
+                  />
+                </Link>
+              </>
+            )}
             <Link to="/join">
               <Button size="sm" className="rounded-full px-6 font-light tracking-wider bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-primary-foreground transition-all duration-300">
                 Join Now
@@ -151,11 +169,27 @@ const Navbar = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 + navLinks.length * 0.05 }}
-                  className="w-full pt-6"
+                  className="w-full pt-6 space-y-3"
                 >
+                  {studentSession && (
+                    <>
+                      <Link to="/members" onClick={() => setIsMobileMenuOpen(false)}>
+                        <Button size="lg" variant="outline" className="w-full rounded-full font-light tracking-widest">
+                          Members Directory
+                        </Button>
+                      </Link>
+                      <Link to={`/members/${studentSession.githubUsername}`} onClick={() => setIsMobileMenuOpen(false)}>
+                        <Button size="lg" variant="outline" className="w-full rounded-full font-light tracking-widest gap-2">
+                          <img src={`https://avatars.githubusercontent.com/${studentSession.githubUsername}?s=24`}
+                            className="w-5 h-5 rounded-full" alt="" />
+                          My Profile
+                        </Button>
+                      </Link>
+                    </>
+                  )}
                   <Link to="/join" onClick={() => setIsMobileMenuOpen(false)}>
                     <Button size="lg" className="w-full rounded-full font-light tracking-widest bg-primary text-primary-foreground shadow-xl shadow-primary/20">
-                      Join Now
+                      {studentSession ? "My Account" : "Join Now"}
                     </Button>
                   </Link>
                 </motion.div>

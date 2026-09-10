@@ -18,7 +18,7 @@ import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LayoutDashboard, FileText, Calendar, Image, Trophy, HelpCircle, MessageSquare, Users, Plus, Trash2, Github, Globe, Terminal, Loader2, Award, Newspaper, Eye, EyeOff, Book, ShieldCheck, LogOut, Ban, UserCheck, UserX, ToggleLeft, ToggleRight, UserPlus, Phone, CalendarDays, Copy, Key, Mail, RotateCcw, ClipboardList, X, Instagram, Linkedin, Twitter, Facebook, Link, Hash } from "lucide-react";
+import { LayoutDashboard, FileText, Calendar, Image, Trophy, HelpCircle, MessageSquare, Users, Plus, Trash2, Github, Globe, Terminal, Loader2, Award, Newspaper, Eye, EyeOff, Book, ShieldCheck, LogOut, Ban, UserCheck, UserX, ToggleLeft, ToggleRight, UserPlus, Phone, CalendarDays, Copy, Key, Mail, RotateCcw, ClipboardList, X, Instagram, Linkedin, Twitter, Facebook, Link, Hash, Upload, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,7 +27,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { parseGitHubUrl } from "@/lib/projectStore";
 import { generateSlug, BlogCategory } from "@/lib/blogStore";
 import { addPublication, deletePublication, getAllPublications, Publication, PublicationType } from "@/lib/publicationStore";
-import { getAdminUsers, blockAdmin, unblockAdmin, getAllPageVisibility, togglePageVisibility, createAdminCredential, getStoredCredentials, deleteAdminCredential, type AdminCredential, type PageVisibility, type AdminRole } from "@/lib/adminStore";
+import { getAdminUsers, blockAdmin, unblockAdmin, getAllPageVisibility, togglePageVisibility, createAdminCredential, getStoredCredentials, deleteAdminCredential, setSuperAdminCredentials, isSuperAdminDefault, type AdminCredential, type PageVisibility, type AdminRole } from "@/lib/adminStore";
 import { addLogEntry, clearLog, getLogEntries, revertEntry, saveCredentialsRaw, type LogEntry } from "@/lib/activityLogStore";
 import { useAdminPresence } from "@/hooks/use-admin-presence";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +50,7 @@ import type { SocialPost } from "@/lib/stores/socialStore";
 import { getAllProjects, addProject as addProjectLocal, deleteProject as deleteProjectLocal, type Project } from "@/lib/projectStore";
 import { getAllBlogPosts, addBlogPost as addBlogLocal, deleteBlogPost as deleteBlogLocal, updateBlogPost as updateBlogLocal, type BlogPost } from "@/lib/blogStore";
 import { getAllGalleryImages, addGalleryImage as addGalleryLocal, deleteGalleryImage as deleteGalleryLocal, type GalleryImage } from "@/lib/galleryStore";
+import { getAllStudents, updateStudent as updateStudentStore, type StudentProfile } from "@/lib/studentStore";
 
 // ── Shared Configuration ───────────────────────────────────────────────────
 const CATEGORY_LABELS: Record<BlogCategory, string> = {
@@ -67,6 +68,169 @@ const CATEGORY_COLORS: Record<BlogCategory, string> = {
 interface AdminProps {
   userRole: AdminRole;
 }
+
+// ── Change Super Admin Credentials Card ───────────────────────────────────────
+
+const ChangeSuperAdminCard = ({
+  actor,
+  onChanged,
+}: {
+  actor: string;
+  onChanged: () => void;
+}) => {
+  const { toast } = useToast();
+  const [name, setName]       = useState("");
+  const [mobile, setMobile]   = useState("");
+  const [dob, setDob]         = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [open, setOpen]       = useState(false);
+
+  const isDefault = isSuperAdminDefault();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !mobile.trim() || !dob) {
+      toast({ title: "All fields required", variant: "destructive" }); return;
+    }
+    if (name.trim().toLowerCase() !== confirm.trim().toLowerCase()) {
+      toast({ title: "Name confirmation doesn't match", variant: "destructive" }); return;
+    }
+    setSuperAdminCredentials(name.trim(), mobile.trim(), dob);
+    addLogEntry({ actor, action: "Changed super admin credentials", type: "create_credential", revertible: false });
+    toast({ title: "Super admin credentials updated ✓", description: "Use your new Name + Mobile + DOB to log in next time." });
+    setName(""); setMobile(""); setDob(""); setConfirm(""); setOpen(false);
+    onChanged();
+  };
+
+  return (
+    <Card className={isDefault ? "border-amber-500/40 bg-amber-500/5" : "border-primary/20"}>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Key className="w-4 h-4 text-amber-500" />
+          Super Admin Credentials
+          {isDefault && (
+            <Badge variant="outline" className="text-amber-600 border-amber-500/40 text-[10px] ml-1">
+              ⚠ Default — change now
+            </Badge>
+          )}
+        </CardTitle>
+        <CardDescription>
+          Change the Name, Mobile, and Date of Birth used to log in as Super Admin.
+          {isDefault && " Default credentials are insecure — update them immediately."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!open ? (
+          <Button variant={isDefault ? "default" : "outline"} size="sm"
+            className="gap-2" onClick={() => setOpen(true)}>
+            <Key className="w-3.5 h-3.5" />
+            {isDefault ? "Set New Credentials (Required)" : "Change Credentials"}
+          </Button>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Full Name</Label>
+                <Input value={name} onChange={e => setName(e.target.value)} placeholder="New name" required autoComplete="off" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Mobile</Label>
+                <Input value={mobile} onChange={e => setMobile(e.target.value)} placeholder="10-digit" required autoComplete="off" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Date of Birth</Label>
+                <Input type="date" value={dob} onChange={e => setDob(e.target.value)} required />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Confirm — re-type your name</Label>
+              <Input value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Type name again" required autoComplete="off" />
+            </div>
+            <div className="flex gap-2">
+              <Button type="submit" size="sm">Save New Credentials</Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            </div>
+          </form>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// ── Students Tab ──────────────────────────────────────────────────────────────
+
+const StudentsTab = () => {
+  const [students, setStudents] = useState<StudentProfile[]>(() => getAllStudents());
+  const { toast } = useToast();
+
+  const toggleActive = (s: StudentProfile) => {
+    const updated = updateStudentStore(s.id, { is_active: !s.is_active });
+    if (updated) {
+      setStudents((prev) => prev.map((x) => (x.id === s.id ? updated : x)));
+      toast({ title: updated.is_active ? `${s.name} reactivated` : `${s.name} deactivated` });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Users className="w-5 h-5 text-primary" /> Registered Students
+          </CardTitle>
+          <CardDescription>{students.length} members · deactivating hides the profile from other students</CardDescription>
+        </CardHeader>
+      </Card>
+
+      {students.length === 0 ? (
+        <Card><CardContent className="py-12 text-center text-muted-foreground font-light">No students have signed up yet.</CardContent></Card>
+      ) : (
+        <div className="grid gap-3">
+          {students.map((s) => (
+            <Card key={s.id} className={`border-primary/10 transition-opacity ${s.is_active ? "" : "opacity-60"}`}>
+              <CardContent className="py-4 flex items-center gap-4 flex-wrap">
+                <img
+                  src={`https://avatars.githubusercontent.com/${s.githubUsername}?s=40`}
+                  alt={s.name}
+                  className="w-10 h-10 rounded-xl ring-2 ring-primary/20 flex-shrink-0 object-cover"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-sm">{s.name}</span>
+                    <Badge variant={s.is_active ? "default" : "destructive"} className="text-[10px] font-light">
+                      {s.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-3">
+                    <span>{s.email}</span>
+                    <span>@{s.githubUsername}</span>
+                    {s.course && <span>{s.course}{s.year ? ` · ${s.year}` : ""}</span>}
+                    <span>Joined {new Date(s.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <a href={`/members/${s.githubUsername}`} target="_blank" rel="noopener noreferrer">
+                    <Button size="sm" variant="outline" className="rounded-full gap-1 text-xs">
+                      <Github className="w-3 h-3" /> View
+                    </Button>
+                  </a>
+                  <Button
+                    size="sm"
+                    variant={s.is_active ? "destructive" : "outline"}
+                    className="rounded-full text-xs"
+                    onClick={() => toggleActive(s)}
+                  >
+                    {s.is_active ? <><UserX className="w-3 h-3 mr-1" />Deactivate</> : <><UserCheck className="w-3 h-3 mr-1" />Reactivate</>}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Admin = ({ userRole }: AdminProps) => {
   const { toast } = useToast();
@@ -954,6 +1118,7 @@ const Admin = ({ userRole }: AdminProps) => {
             <TabsTrigger value="faq"><HelpCircle className="w-4 h-4 mr-2 hidden sm:inline" />FAQ</TabsTrigger>
             <TabsTrigger value="messages"><MessageSquare className="w-4 h-4 mr-2 hidden sm:inline" />Messages</TabsTrigger>
             <TabsTrigger value="certificates"><Award className="w-4 h-4 mr-2 hidden sm:inline" />Certs</TabsTrigger>
+            <TabsTrigger value="students"><Users className="w-4 h-4 mr-2 hidden sm:inline" />Students</TabsTrigger>
             {isSuperAdmin && (
               <TabsTrigger value="super-admin" className="bg-primary/10 text-primary">
                 <ShieldCheck className="w-4 h-4 mr-2" />Super Admin
@@ -966,23 +1131,23 @@ const Admin = ({ userRole }: AdminProps) => {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Total Members</CardTitle>
+                  <CardTitle className="text-sm font-medium">Registered Students</CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">500+</div>
-                  <p className="text-xs text-muted-foreground">Registered users</p>
+                  <div className="text-2xl font-bold">{getAllStudents().filter(s => s.is_active).length}</div>
+                  <p className="text-xs text-muted-foreground">{getAllStudents().length} total · {getAllStudents().filter(s => !s.is_active).length} inactive</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
+                  <CardTitle className="text-sm font-medium">Projects</CardTitle>
                   <FileText className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{projects.length + 6}</div>
-                  <p className="text-xs text-muted-foreground">Total showcase items</p>
+                  <div className="text-2xl font-bold">{projects.length}</div>
+                  <p className="text-xs text-muted-foreground">In showcase</p>
                 </CardContent>
               </Card>
 
@@ -992,8 +1157,8 @@ const Admin = ({ userRole }: AdminProps) => {
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">20+</div>
-                  <p className="text-xs text-muted-foreground">Scheduled</p>
+                  <div className="text-2xl font-bold">{events.filter(ev => ev.status === "upcoming").length}</div>
+                  <p className="text-xs text-muted-foreground">{events.length} total events</p>
                 </CardContent>
               </Card>
 
@@ -1004,7 +1169,7 @@ const Admin = ({ userRole }: AdminProps) => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{publishedBlogCount}</div>
-                  <p className="text-xs text-muted-foreground">Published</p>
+                  <p className="text-xs text-muted-foreground">{blogPosts.length - publishedBlogCount} drafts</p>
                 </CardContent>
               </Card>
             </div>
@@ -2046,6 +2211,11 @@ const Admin = ({ userRole }: AdminProps) => {
             <CertificateSender />
           </TabsContent>
 
+          {/* ── Students ── */}
+          <TabsContent value="students">
+            <StudentsTab />
+          </TabsContent>
+
           {/* ── Socials ── */}
           <TabsContent value="socials">
             <div className="grid lg:grid-cols-5 gap-6">
@@ -2176,6 +2346,9 @@ const Admin = ({ userRole }: AdminProps) => {
           {isSuperAdmin && (
             <TabsContent value="super-admin">
               <div className="space-y-8">
+                {/* ── Change Super Admin Credentials ── */}
+                <ChangeSuperAdminCard actor={currentUserName} onChanged={() => toast({ title: "Super admin credentials updated ✓" })} />
+
                 {/* ── Create Admin Credentials ── */}
                 <Card className="border-green-500/20">
                   <CardHeader>

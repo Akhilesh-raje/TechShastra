@@ -1,4 +1,4 @@
-import { AdminCredential, getStoredCredentials } from "./adminStore";
+import { AdminCredential, getStoredCredentials, setPageVisibility } from "./adminStore";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -11,20 +11,17 @@ export type LogEntryType =
 
 export interface LogEntry {
     id: string;
-    timestamp: string;           // ISO string
-    actor: string;               // e.g. "Akhilesh Raje"
-    action: string;              // human-readable description
+    timestamp: string;
+    actor: string;
+    action: string;
     type: LogEntryType;
     revertible: boolean;
-    /** For create/delete: full snapshot of the credential so we can restore/remove. */
     credentialSnapshot?: AdminCredential;
-    /** For block/unblock: id of the credential that was toggled. */
     credentialId?: string;
-    /** For page visibility: the page ID and target visibility */
     pageId?: string;
     pageName?: string;
     pagePath?: string;
-    isVisible?: boolean;
+    isVisible?: boolean;     // the NEW state after the toggle (revert sets it back to !isVisible)
 }
 
 const LOG_KEY = "ts_super_admin_log";
@@ -61,10 +58,6 @@ export const clearLog = () => {
 
 // ─── REVERT ───────────────────────────────────────────────────────────────────
 
-/**
- * Attempt to revert the action described by a log entry.
- * Returns { success, message } describing the outcome.
- */
 export const revertEntry = (
     entryId: string,
     saveCredentials: (creds: AdminCredential[]) => void
@@ -79,12 +72,11 @@ export const revertEntry = (
 
     switch (entry.type) {
         case "delete_credential": {
-            // Restore the deleted credential
             if (!entry.credentialSnapshot) return { success: false, message: "No snapshot to restore." };
-            const already = creds.some((c) => c.id === entry.credentialSnapshot!.id);
-            if (already) return { success: false, message: "Credential already exists." };
-            const restored = [...creds, entry.credentialSnapshot];
-            saveCredentials(restored);
+            if (creds.some((c) => c.id === entry.credentialSnapshot!.id)) {
+                return { success: false, message: "Credential already exists." };
+            }
+            saveCredentials([...creds, entry.credentialSnapshot]);
             addLogEntry({
                 actor: entry.actor,
                 action: `↩️ Reverted deletion of ${entry.credentialSnapshot.name}'s credentials`,
@@ -96,10 +88,8 @@ export const revertEntry = (
         }
 
         case "create_credential": {
-            // Delete the credential that was created
             if (!entry.credentialSnapshot) return { success: false, message: "No snapshot available." };
-            const filtered = creds.filter((c) => c.id !== entry.credentialSnapshot!.id);
-            saveCredentials(filtered);
+            saveCredentials(creds.filter((c) => c.id !== entry.credentialSnapshot!.id));
             addLogEntry({
                 actor: entry.actor,
                 action: `↩️ Reverted creation of ${entry.credentialSnapshot.name}'s credentials`,
@@ -111,47 +101,52 @@ export const revertEntry = (
         }
 
         case "block_credential": {
-            // Unblock the credential
             const id = entry.credentialId;
             if (!id) return { success: false, message: "No credential ID to unblock." };
             const updated = creds.map((c) => (c.id === id ? { ...c, is_blocked: false } : c));
             saveCredentials(updated);
-            const target = creds.find((c) => c.id === id);
             addLogEntry({
                 actor: entry.actor,
-                action: `↩️ Reverted block on ${target?.name ?? id}`,
+                action: `↩️ Reverted block on ${creds.find(c => c.id === id)?.name ?? id}`,
                 type: "unblock_credential",
                 revertible: false,
                 credentialId: id,
             });
-            return { success: true, message: `Unblocked ${target?.name ?? id}.` };
+            return { success: true, message: `Unblocked ${creds.find(c => c.id === id)?.name ?? id}.` };
         }
 
         case "unblock_credential": {
-            // Re-block the credential
             const id = entry.credentialId;
             if (!id) return { success: false, message: "No credential ID to block." };
             const updated = creds.map((c) => (c.id === id ? { ...c, is_blocked: true } : c));
             saveCredentials(updated);
-            const target = creds.find((c) => c.id === id);
             addLogEntry({
                 actor: entry.actor,
-                action: `↩️ Reverted unblock on ${target?.name ?? id}`,
+                action: `↩️ Reverted unblock on ${creds.find(c => c.id === id)?.name ?? id}`,
                 type: "block_credential",
                 revertible: false,
                 credentialId: id,
             });
-            return { success: true, message: `Re-blocked ${target?.name ?? id}.` };
+            return { success: true, message: `Re-blocked ${creds.find(c => c.id === id)?.name ?? id}.` };
         }
 
         case "toggle_page": {
-            // Import togglePageVisibility dynamically or assume it's handled in Admin.tsx
-            // Actually, since this is a pure store, we should return a signal for Admin.tsx to perform the action.
-            // But for consistency with credentials, let's keep the revert logic here if possible.
-            // Since page_visibility is in Supabase, we need a way to call the API.
-            // For now, let's just return a failure or mark it as non-revertible in the store
-            // OR pass a callback. Let's pass a broader callback.
-            return { success: false, message: "Page visibility revert must be handled via the Admin panel." };
+            // isVisible is the state AFTER the toggle — revert means setting it back to !isVisible
+            const { pageId, pageName, isVisible } = entry;
+            if (!pageId) return { success: false, message: "No page ID in log entry." };
+            const targetVisibility = !isVisible;
+            // Fire-and-forget async; setPageVisibility is sync under the hood
+            setPageVisibility(pageId, targetVisibility).catch(() => {});
+            addLogEntry({
+                actor: entry.actor,
+                action: `↩️ Reverted "${pageName ?? pageId}" visibility → ${targetVisibility ? "visible" : "hidden"}`,
+                type: "toggle_page",
+                revertible: false,
+                pageId,
+                pageName,
+                isVisible: targetVisibility,
+            });
+            return { success: true, message: `"${pageName ?? pageId}" set to ${targetVisibility ? "visible" : "hidden"}.` };
         }
 
         default:
@@ -159,7 +154,7 @@ export const revertEntry = (
     }
 };
 
-// ─── INTERNAL SAVE HELPER (used by revertEntry) ──────────────────────────────
+// ─── SAVE HELPER (used by revertEntry callers in Admin.tsx) ──────────────────
 export const saveCredentialsRaw = (creds: AdminCredential[]) => {
     localStorage.setItem("ts_admin_credentials", JSON.stringify(creds));
 };

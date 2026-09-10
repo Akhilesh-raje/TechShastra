@@ -20,11 +20,6 @@ const socialLinks = [
   { icon: Instagram, label: "Instagram", link: "https://www.instagram.com/techshastra_utu" },
 ];
 
-const leadershipContacts = [
-  { name: "Amitesh Kumar", role: "Vice-President", email: "amitesh.kumar@example.com", phone: "+91 7439587546" },
-  { name: "Akhilesh Raje", role: "President", email: "akhilesh.raje@example.com", phone: "+91 7817030426" },
-  { name: "Pratyush Shrivastava", role: "Secretary", email: "pratyushsrivastava875@gmail.com", phone: "+91 8077868866" },
-];
 
 const Contact = () => {
   const { toast } = useToast();
@@ -226,35 +221,7 @@ const Contact = () => {
           </div>
         </div>
 
-        {/* Leadership Cards */}
-        <div className="text-center mb-10">
-          <h3 className="text-xl font-heading font-light tracking-widest uppercase text-foreground/40">Direct Leadership Access</h3>
-        </div>
-        <div className="grid md:grid-cols-3 gap-6">
-          {leadershipContacts.map((lead, index) => (
-            <Card key={index} className="glass border-0 rounded-3xl overflow-hidden hover:scale-[1.02] transition-all duration-500 group">
-              <CardContent className="p-8 space-y-6">
-                <div className="space-y-1">
-                  <h3 className="text-lg font-heading font-normal tracking-wide text-foreground group-hover:text-primary transition-colors">
-                    {lead.name}
-                  </h3>
-                  <p className="text-[10px] font-light tracking-[0.2em] uppercase text-foreground/40">{lead.role}</p>
-                </div>
 
-                <div className="space-y-3 pt-4 border-t border-foreground/5">
-                  <a href={`mailto:${lead.email}`} className="flex items-center gap-3 text-sm font-light text-foreground/50 hover:text-foreground transition-colors group/link">
-                    <Mail className="w-4 h-4 text-primary/40 group-hover/link:text-primary" />
-                    {lead.email}
-                  </a>
-                  <a href={`tel:${lead.phone}`} className="flex items-center gap-3 text-sm font-light text-foreground/50 hover:text-foreground transition-colors group/link">
-                    <Phone className="w-4 h-4 text-primary/40 group-hover/link:text-primary" />
-                    {lead.phone}
-                  </a>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
       </div>
     </section>
   );

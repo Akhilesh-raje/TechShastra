@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { StudentAuthProvider } from "@/hooks/useStudentAuth";
 import Index from "./pages/Index";
 import AboutPage from "./pages/AboutPage";
 import Join from "./pages/Join";
@@ -23,7 +24,11 @@ import Admin from "./pages/Admin";
 import Publications from "./pages/Publications";
 import ContactPage from "./pages/Contact";
 import NotFound from "./pages/NotFound";
+import MemberProfile from "./pages/MemberProfile";
+import MemberEdit from "./pages/MemberEdit";
+import Members from "./pages/Members";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedStudentRoute from "./components/ProtectedStudentRoute";
 import { getStoredPageVisibility } from "./lib/adminStore";
 
 // Reads page visibility from localStorage; redirects to / if hidden by admin
@@ -37,48 +42,76 @@ function PageGuard({ path, children }: { path: string; children: React.ReactNode
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/join" element={<Join />} />
-            <Route path="/auth" element={<Auth />} />
+    <StudentAuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/join" element={<Join />} />
+              <Route path="/auth" element={<Auth />} />
 
-            <Route path="/projects" element={<PageGuard path="/projects"><Projects /></PageGuard>} />
-            <Route path="/projects/:id" element={<PageGuard path="/projects"><ProjectDetail /></PageGuard>} />
-            <Route path="/projects/:id/live" element={<PageGuard path="/projects"><ProjectLive /></PageGuard>} />
+              <Route path="/projects" element={<PageGuard path="/projects"><Projects /></PageGuard>} />
+              <Route path="/projects/:id" element={<PageGuard path="/projects"><ProjectDetail /></PageGuard>} />
+              <Route path="/projects/:id/live" element={<PageGuard path="/projects"><ProjectLive /></PageGuard>} />
 
-            <Route path="/events" element={<PageGuard path="/events"><Events /></PageGuard>} />
-            <Route path="/events/:id" element={<PageGuard path="/events"><EventDetail /></PageGuard>} />
+              <Route path="/events" element={<PageGuard path="/events"><Events /></PageGuard>} />
+              <Route path="/events/:id" element={<PageGuard path="/events"><EventDetail /></PageGuard>} />
 
-            <Route path="/blog" element={<PageGuard path="/blog"><Blog /></PageGuard>} />
-            <Route path="/blog/:slug" element={<PageGuard path="/blog"><BlogPost /></PageGuard>} />
+              <Route path="/blog" element={<PageGuard path="/blog"><Blog /></PageGuard>} />
+              <Route path="/blog/:slug" element={<PageGuard path="/blog"><BlogPost /></PageGuard>} />
 
-            <Route path="/resources" element={<PageGuard path="/resources"><Resources /></PageGuard>} />
-            <Route path="/gallery" element={<PageGuard path="/gallery"><Gallery /></PageGuard>} />
-            <Route path="/faq" element={<PageGuard path="/faq"><FAQ /></PageGuard>} />
-            <Route path="/achievements" element={<PageGuard path="/achievements"><Achievements /></PageGuard>} />
-            <Route path="/socials" element={<PageGuard path="/socials"><Socials /></PageGuard>} />
-            <Route path="/publications" element={<PageGuard path="/publications"><Publications /></PageGuard>} />
-            <Route path="/contact" element={<ContactPage />} />
+              <Route path="/resources" element={<PageGuard path="/resources"><Resources /></PageGuard>} />
+              <Route path="/gallery" element={<PageGuard path="/gallery"><Gallery /></PageGuard>} />
+              <Route path="/faq" element={<PageGuard path="/faq"><FAQ /></PageGuard>} />
+              <Route path="/achievements" element={<PageGuard path="/achievements"><Achievements /></PageGuard>} />
+              <Route path="/socials" element={<PageGuard path="/socials"><Socials /></PageGuard>} />
+              <Route path="/publications" element={<PageGuard path="/publications"><Publications /></PageGuard>} />
+              <Route path="/contact" element={<ContactPage />} />
 
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute requireAdmin>
-                  {({ userRole }) => <Admin userRole={userRole} />}
-                </ProtectedRoute>
-              }
-            />
+              {/* Student members — directory + individual profiles + edit */}
+              <Route
+                path="/members"
+                element={
+                  <ProtectedStudentRoute>
+                    <Members />
+                  </ProtectedStudentRoute>
+                }
+              />
+              <Route
+                path="/members/:username"
+                element={
+                  <ProtectedStudentRoute>
+                    <MemberProfile />
+                  </ProtectedStudentRoute>
+                }
+              />
+              <Route
+                path="/members/:username/edit"
+                element={
+                  <ProtectedStudentRoute>
+                    <MemberEdit />
+                  </ProtectedStudentRoute>
+                }
+              />
 
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    {({ userRole }) => <Admin userRole={userRole} />}
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </StudentAuthProvider>
   </ThemeProvider>
 );
 
