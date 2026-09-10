@@ -269,7 +269,7 @@ const SignupForm = ({ onSuccess }: { onSuccess: (username: string) => void }) =>
           <FormField control={form.control} name="name" render={({ field }) => (
             <FormItem>
               <FormLabel className="text-xs font-light tracking-widest uppercase text-foreground/50">Full Name</FormLabel>
-              <FormControl><Input {...field} className={inputCls} placeholder="Akhilesh Raje" /></FormControl>
+              <FormControl><Input {...field} className={inputCls} placeholder="Your Name" /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
