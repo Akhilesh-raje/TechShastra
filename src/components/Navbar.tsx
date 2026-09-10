@@ -33,10 +33,10 @@ const Navbar = () => {
     { label: "About", href: "/about" },
     { label: "Projects", href: "/projects" },
     { label: "Events", href: "/events" },
-    { label: "Blog", href: "/blog" },
+    // { label: "Blog", href: "/blog" },
     { label: "Socials", href: "/socials" },
-    { label: "Research & Books", href: "/publications" },
-    { label: "Resources", href: "/resources" },
+    // { label: "Research & Books", href: "/publications" },
+    // { label: "Resources", href: "/resources" },
     { label: "Contact", href: "/contact" },
   ];
 
@@ -47,18 +47,18 @@ const Navbar = () => {
         : "bg-transparent py-4"
         }`}
     >
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 relative">
         <div className="flex items-center justify-between">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-3 group" onClick={() => setIsMobileMenuOpen(false)}>
+          {/* Logo — left */}
+          <Link to="/" className="flex items-center space-x-3 group shrink-0" onClick={() => setIsMobileMenuOpen(false)}>
             <img src="/favicon.ico" alt="TECHSHASTRA Logo" className="w-8 h-8 object-contain group-hover:scale-110 transition-transform duration-300" />
             <span className="font-heading text-lg tracking-[0.15em] font-light text-foreground group-hover:text-primary transition-colors">
               TECHSHASTRA
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          {/* Desktop Navigation — center */}
+          <div className="hidden md:flex items-center space-x-8 absolute left-1/2 -translate-x-1/2">
             {navLinks.map((link) => (
               link.href.startsWith('#') ? (
                 <a
@@ -83,6 +83,10 @@ const Navbar = () => {
                 </Link>
               )
             ))}
+          </div>
+
+          {/* Right actions */}
+          <div className="hidden md:flex items-center space-x-4 shrink-0">
             <ThemeToggle />
             {studentSession && (
               <>
